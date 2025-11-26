@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Music Player</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#FF0000"> <!-- YouTube 紅 -->
+    <meta name="theme-color" content="#FF0000">
     <style>
         body { font-family: -apple-system, sans-serif; margin: 0; background: #000; color: #fff; }
         #search { width: 100%; padding: 10px; box-sizing: border-box; background: #212121; border: none; color: #fff; font-size: 16px; }
@@ -13,14 +13,17 @@
         li { padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         button { background: #FF0000; color: #fff; border: none; padding: 5px 10px; border-radius: 20px; cursor: pointer; }
         #player { position: fixed; bottom: 0; width: 100%; background: #212121; padding: 10px; display: flex; justify-content: space-around; }
-        audio { width: 100%; } /* 隱藏，但控制鎖屏 */
+        #player-controls { display: flex; align-items: center; gap: 10px; }
+        #youtube-player { position: fixed; top: -100%; left: 0; width: 1px; height: 1px; opacity: 0; } /* 隱藏視窗，只播聲 */
         .hidden { display: none; }
         #tabs { display: flex; justify-content: space-around; background: #212121; padding: 10px; }
         #tabs button { background: none; color: #fff; border: none; padding: 10px; }
         .active { border-bottom: 2px solid #FF0000; }
+        #error { color: #FF0000; padding: 10px; display: none; }
     </style>
 </head>
 <body>
+    <div id="error"></div>
     <input type="text" id="search" placeholder="搜尋歌曲或播放清單...">
     <select id="type"><option value="video">歌曲</option><option value="playlist">播放清單</option></select>
     <button onclick="search()">搜尋</button>
@@ -38,64 +41,99 @@
     <ul id="playlists" class="hidden"></ul>
 
     <div id="player">
-        <audio id="audio" controls></audio> <!-- 鎖屏控制 -->
-        <button onclick="togglePlay()">播放/暫停</button>
-        <button onclick="nextTrack()">下一首</button>
+        <div id="player-controls">
+            <span id="current-title">無播放</span>
+            <button onclick="togglePlay()">播放/暫停</button>
+            <button onclick="nextTrack()">下一首</button>
+        </div>
     </div>
 
+    <iframe id="youtube-player" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+
     <script>
-        const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 換成你的 API Key
+        const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 記得換！
         const BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
         let currentTrack = null;
-        let tracks = []; // 當前清單
+        let tracks = [];
         let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
         let history = JSON.parse(localStorage.getItem('history')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [{id: 'default', name: '我的最愛', tracks: []}];
+        const player = document.getElementById('youtube-player');
+        const errorDiv = document.getElementById('error');
+        const currentTitle = document.getElementById('current-title');
+
+        // 錯誤顯示
+        function showError(msg) {
+            errorDiv.textContent = `錯誤：${msg}`;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
 
         // 搜尋
         async function search() {
-            const query = document.getElementById('search').value;
-            const type = document.getElementById('type').value;
-            const url = `${BASE_URL}?key=${API_KEY}&q=${encodeURIComponent(query)}&part=snippet&type=${type}&maxResults=20`;
-            const res = await fetch(url);
-            const data = await res.json();
-            const results = document.getElementById('results');
-            results.innerHTML = '';
-            data.items.forEach(item => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${item.snippet.title}</span>
-                    <div>
-                        <button onclick="play('${item.id.videoId || item.id.playlistId}', '${item.snippet.title}')">播放</button>
-                        <button onclick="addFavorite('${item.id.videoId || item.id.playlistId}', '${item.snippet.title}', '${type}')">加最愛</button>
-                        ${type === 'playlist' ? `<button onclick="addPlaylistToFavorites('${item.id.playlistId}', '${item.snippet.title}')">加整清單</button>` : ''}
-                    </div>
-                `;
-                results.appendChild(li);
-            });
+            try {
+                const query = document.getElementById('search').value;
+                if (!query) return showError('請輸入關鍵字');
+                if (!API_KEY || API_KEY === 'YOUR_API_KEY') return showError('請設定 API Key');
+                const type = document.getElementById('type').value;
+                const url = `${BASE_URL}?key=${API_KEY}&q=${encodeURIComponent(query)}&part=snippet&type=${type}&maxResults=20`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`API 錯誤: ${res.status}`);
+                const data = await res.json();
+                if (data.error) throw new Error(data.error.message);
+                const results = document.getElementById('results');
+                results.innerHTML = '';
+                data.items.forEach(item => {
+                    const vid = item.id.videoId || item.id.playlistId;
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${item.snippet.title}</span>
+                        <div>
+                            <button onclick="play('${vid}', '${item.snippet.title}', '${type}')">播放</button>
+                            <button onclick="addFavorite('${vid}', '${item.snippet.title}', '${type}')">加最愛</button>
+                            ${type === 'playlist' ? `<button onclick="addPlaylistToFavorites('${item.id.playlistId}', '${item.snippet.title}')">加整清單</button>` : ''}
+                        </div>
+                    `;
+                    results.appendChild(li);
+                });
+            } catch (e) {
+                showError(e.message);
+            }
         }
 
-        // 播放
-        function play(id, title) {
-            currentTrack = {id, title};
-            const audio = document.getElementById('audio');
-            audio.src = `https://www.youtube.com/embed/${id}?autoplay=1`; // 嵌入模式，但用 audio 控制
-            audio.play(); // iOS 需要用戶互動
-            addToHistory(id, title);
-            tracks.unshift({id, title}); // 加到當前清單
+        // 播放（用 iframe 嵌入）
+        function play(id, title, type = 'video') {
+            try {
+                currentTrack = {id, title, type};
+                currentTitle.textContent = title;
+                addToHistory(id, title);
+                tracks.unshift({id, title, type});
+                const src = `https://www.youtube.com/embed/${id}?playsinline=1&autoplay=1&controls=0&showinfo=0&modestbranding=1&rel=0${type === 'playlist' ? '&playlist=' + id : ''}`;
+                player.src = src;
+                player.style.display = 'block'; // 顯示隱藏 iframe
+                // iOS 需要用戶互動，點播後才允許
+                player.onload = () => {
+                    if (player.contentWindow && player.contentWindow.postMessage) {
+                        player.contentWindow.postMessage({event: 'command', func: 'playVideo', args: []}, '*');
+                    }
+                };
+            } catch (e) {
+                showError('播放失敗: ' + e.message);
+            }
         }
 
         // 切換播放/暫停
         function togglePlay() {
-            const audio = document.getElementById('audio');
-            if (audio.paused) audio.play(); else audio.pause();
+            if (player.src) {
+                player.contentWindow.postMessage({event: 'command', func: player.paused ? 'playVideo' : 'pauseVideo', args: []}, '*');
+            }
         }
 
         // 下一首
         function nextTrack() {
             if (tracks.length > 1) {
                 const next = tracks[1];
-                play(next.id, next.title);
+                play(next.id, next.title, next.type);
             }
         }
 
@@ -108,15 +146,19 @@
             }
         }
 
-        // 加整清單到最愛（用 API 抓清單項目）
+        // 加整清單到最愛
         async function addPlaylistToFavorites(playlistId, name) {
-            const url = `https://www.googleapis.com/youtube/v3/playlistItems?key=${API_KEY}&playlistId=${playlistId}&part=snippet&maxResults=50`;
-            const res = await fetch(url);
-            const data = await res.json();
-            data.items.forEach(item => {
-                addFavorite(item.snippet.resourceId.videoId, item.snippet.title, 'video');
-            });
-            alert(`已加 ${data.items.length} 首歌到最愛！`);
+            try {
+                const url = `https://www.googleapis.com/youtube/v3/playlistItems?key=${API_KEY}&playlistId=${playlistId}&part=snippet&maxResults=50`;
+                const res = await fetch(url);
+                const data = await res.json();
+                data.items.forEach(item => {
+                    addFavorite(item.snippet.resourceId.videoId, item.snippet.title, 'video');
+                });
+                alert(`已加 ${data.items.length} 首歌到最愛！`);
+            } catch (e) {
+                showError(e.message);
+            }
         }
 
         // 歷史
@@ -128,7 +170,7 @@
             }
         }
 
-        // 建立/管理清單
+        // 建立/管理清單（簡化）
         function createPlaylist(name) {
             playlists.push({id: Date.now().toString(), name, tracks: []});
             localStorage.setItem('playlists', JSON.stringify(playlists));
@@ -140,9 +182,12 @@
             const lists = {favorites, history, playlists};
             const ul = document.getElementById(tab);
             ul.innerHTML = '';
-            lists[tab].forEach(item => {
+            (lists[tab] || []).forEach(item => {
                 const li = document.createElement('li');
-                li.innerHTML = `<span>${item.name || item.title}</span><button onclick="play('${item.id}', '${item.title}')">播放</button>`;
+                li.innerHTML = `
+                    <span>${item.name || item.title}</span>
+                    <button onclick="play('${item.id}', '${item.title}', '${item.type || 'video'}')">播放</button>
+                `;
                 if (tab === 'playlists') {
                     li.innerHTML += `<button onclick="addToPlaylist('${item.id}')">編輯</button>`;
                 }
@@ -150,7 +195,7 @@
             });
         }
 
-        // 加到清單（簡化，預設加到 default）
+        // 加到清單
         function addToPlaylist(trackId) {
             playlists[0].tracks.push(trackId);
             localStorage.setItem('playlists', JSON.stringify(playlists));
@@ -161,16 +206,16 @@
             document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
             document.querySelectorAll('ul').forEach(u => u.classList.add('hidden'));
-            document.getElementById(tab).classList.remove('hidden');
+            document.getElementById(tab + (tab === 'search' ? '' : 's')).classList.remove('hidden');
             if (tab !== 'search') renderList(tab);
         }
 
-        // Service Worker 註冊（背景/離線）
+        // Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
         }
 
-        // 初始渲染
+        // 初始
         renderList('favorites');
     </script>
 </body>
