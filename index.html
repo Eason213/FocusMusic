@@ -12,13 +12,14 @@
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:-apple-system,sans-serif;background:#000;color:#fff;min-height:100vh;}
-        #search-bar{padding:15px;background:#000;position:sticky;top:0;z-index:10;display:flex;gap:10px;align-items:center;}
-        #search{flex:1;padding:14px;background:#111;border:none;border-radius:12px;color:#fff;font-size:17px;}
-        #search-btn{background:#ff0000;color:#fff;border:none;padding:14px 20px;border-radius:12px;font-size:20px;}
-        #search-controls{margin:12px 0;display:flex;gap:10px;flex-wrap:wrap;padding:0 15px;}
+        #search-bar{padding:15px;background:#000;position:sticky;top:0;z-index:10;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+        #search{flex:1;min-width:200px;padding:14px;background:#111;border:none;border-radius:12px;color:#fff;font-size:17px;}
+        #search-type{padding:14px 10px;background:#111;color:#fff;border:none;border-radius:12px;font-size:15px;}
+        #search-btn{background:#ff0000;color:#fff;border:none;padding:14px 20px;border-radius:12px;}
+        #search-controls{margin:12px 15px;display:flex;gap:10px;flex-wrap:wrap;}
         .btn{background:#ff0000;color:#fff;border:none;padding:11px 18px;border-radius:30px;font-size:15px;font-weight:600;}
         .btn-green{background:#00aa00;}
-        #tabs{display:flex;background:#111;position:sticky;top:68px;z-index:9;}
+        #tabs{display:flex;background:#111;position:sticky;top:78px;z-index:9;}
         #tabs button{flex:1;padding:16px;background:none;border:none;color:#888;font-size:15px;}
         #tabs button.active{color:#ff0000;border-bottom:3px solid #ff0000;}
         ul{list-style:none;padding:0 12px;}
@@ -31,13 +32,11 @@
 
         #player{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.95));padding:20px;backdrop-filter:blur(20px);border-top:1px solid #222;}
         #current-title{font-size:18px;font-weight:600;margin-bottom:8px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        #progress-container{width:100%;height:4px;background:#333;border-radius:2px;margin:10px 0;position:relative;cursor:pointer;}
-        #progress{width:0%;height:100%;background:#ff0000;border-radius:2px;}
-        #controls{display:flex;justify-content:center;align-items:center;gap:35px;margin-top:10px;}
+        #progress-container{width:100%;height:5px;background:#333;border-radius:3px;margin:10px 0;position:relative;cursor:pointer;}
+        #progress{width:0%;height:100%;background:#ff0000;border-radius:3px;}
+        #controls{display:flex;justify-content:center;align-items:center;gap:30px;margin-top:10px;}
         #controls button{background:none;border:none;color:#fff;width:60px;height:60px;display:flex;align-items:center;justify-content:center;}
-        #prevBtn,#nextBtn,#loopBtn{font-size:46px;}
-        #playBtn{font-size:56px;}
-        .active-loop{color:#ff0000 !important;}
+        #loopBtn.active-loop{color:#ff0000;}
 
         #mode-info{padding:0 15px;font-size:14px;color:#00ff00;height:20px;text-align:center;}
         #youtube-player{position:fixed;top:-100vh;left:-100vw;width:1px;height:1px;opacity:0;}
@@ -47,13 +46,18 @@
 <body>
 
 <div id="search-bar">
-    <input type="text" id="search" placeholder="搜尋歌曲…" onkeypress="if(event.key==='Enter') search()">
+    <input type="text" id="search" placeholder="搜尋歌曲或播放清單…" onkeypress="if(event.key==='Enter') search()">
+    <select id="search-type">
+        <option value="video">歌曲</option>
+        <option value="playlist">播放清單</option>
+    </select>
     <button id="search-btn" onclick="search()">Search</button>
 </div>
 
+<!-- 根據當前頁面顯示「全部自動播放」 -->
 <div id="search-controls" class="hidden">
-    <button class="btn btn-green" onclick="playAllSearch()">全部自動播放</button>
-    <button class="btn" onclick="addAllToFav()">全部加入最愛</button>
+    <button class="btn btn-green" onclick="playCurrentPageAll()">全部自動播放</button>
+    <button class="btn" onclick="addCurrentPageToFav()">全部加入最愛</button>
 </div>
 
 <div id="tabs">
@@ -66,8 +70,8 @@
 
 <ul id="results"></ul>
 <div id="fav-controls" class="hidden" style="padding:15px;text-align:center;">
-    <button class="btn btn-green" onclick="playFav('normal')">全部播放</button>
-    <button class="btn" onclick="playFav('shuffle')">隨機播放</button>
+    <button class="btn btn-green" onclick="playCurrentPageAll()">全部播放</button>
+    <button class="btn" onclick="playCurrentPageAll('shuffle')">隨機播放</button>
 </div>
 <ul id="favorites" class="hidden"></ul>
 <ul id="history" class="hidden"></ul>
@@ -81,13 +85,13 @@
         <button id="loopBtn" onclick="toggleLoop()">
             <span class="material-icons">repeat</span>
         </button>
-        <button id="prevBtn" onclick="prevTrack()">
+        <button onclick="prevTrack()">
             <span class="material-icons">skip_previous</span>
         </button>
         <button id="playBtn" onclick="togglePlay()">
             <span class="material-icons">play_arrow</span>
         </button>
-        <button id="nextBtn" onclick="nextTrack()">
+        <button onclick="nextTrack()">
             <span class="material-icons">skip_next</span>
         </button>
     </div>
@@ -97,87 +101,100 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-    // 你只需要改這一行！！！只有這一行！！！
-    const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ';  // ← 換成你的金鑰
-    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+    const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ';  // ← 只要改這一行！
 
-    let player, tracks = [], idx = -1, mode = 'normal'; // normal, shuffle, loop
+    let player, tracks = [], idx = -1, mode = 'normal';
+    let currentTab = 'results'; // 目前分頁
+    let currentList = []; // 當前頁面顯示的歌曲陣列
     let favorites = JSON.parse(localStorage.getItem('myfav')||'[]');
     let history   = JSON.parse(localStorage.getItem('myhist')||'[]');
     let blocked   = JSON.parse(localStorage.getItem('myblock')||'{}');
-    let searchRes = [];
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('youtube-player', {
             playerVars: { playsinline:1, controls:0, rel:0 },
-            events: { 'onReady':onReady, 'onStateChange':onStateChange }
+            events: { 'onReady':()=>setInterval(updateProgress,500), 'onStateChange':onStateChange }
         });
-    }
-
-    function onReady() {
-        setInterval(updateProgress, 500);
     }
 
     async function search() {
         const q = document.getElementById('search').value.trim();
-        if (!q || API_KEY==='YOUR_API_KEY') return alert('請輸入關鍵字並設定 API Key');
-        const url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&q=${encodeURIComponent(q)}&part=snippet&type=video&maxResults=30&videoEmbeddable=true`;
-        try {
-            const r = await fetch(url);
-            const d = await r.json();
-            searchRes = d.items.filter(i => i.id?.videoId);
-            const ul = document.getElementById('results'); ul.innerHTML = '';
-            searchRes.forEach(item => {
-                const id = item.id.videoId;
-                const t = item.snippet;
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <img src="${t.thumbnails.medium?.url || t.thumbnails.default.url}">
-                    <div class="info">
-                        <div class="title">${t.title}</div>
-                        <div class="artist">${t.channelTitle}</div>
-                    </div>
-                    <div class="actions">
-                        <button onclick="playId('${id}','${t.title.replace(/'/g,"\\'")}')">播放</button>
-                        <button onclick="addFav('${id}','${t.title.replace(/'/g,"\\'")}')">Heart</button>
-                    </div>`;
-                ul.appendChild(li);
+        const type = document.getElementById('search-type').value;
+        if (!q || API_KEY==='YOUR_API_KEY') return alert('請輸入並設定 API Key');
+
+        let url = `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&q=${encodeURIComponent(q)}&part=snippet&type=${type}&maxResults=30&videoEmbeddable=true`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        currentList = [];
+        const ul = document.getElementById('results'); ul.innerHTML = '';
+
+        if (type === 'playlist') {
+            // 播放清單：抓前 50 首
+            for (let item of data.items) {
+                const playlistId = item.id.playlistId;
+                const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${API_KEY}&playlistId=${playlistId}&part=snippet&maxResults=50`);
+                const playlistData = await playlistRes.json();
+                playlistData.items.forEach(pl => {
+                    if (pl.snippet.title !== 'Private video' && pl.snippet.resourceId?.videoId) {
+                        currentList.push({id: pl.snippet.resourceId.videoId, title: pl.snippet.title});
+                        addResultItem(pl.snippet.resourceId.videoId, pl.snippet.title, pl.snippet.thumbnails?.medium?.url || 'https://i.ytimg.com/vi/'+pl.snippet.resourceId.videoId+'/mqdefault.jpg');
+                    }
+                });
+            }
+        } else {
+            // 單曲搜尋
+            data.items.forEach(item => {
+                if (item.id?.videoId) {
+                    currentList.push({id: item.id.videoId, title: item.snippet.title});
+                    addResultItem(item.id.videoId, item.snippet.title, item.snippet.thumbnails?.medium?.url);
+                }
             });
-            document.getElementById('search-controls').classList.remove('hidden');
-        } catch(e) { alert('搜尋失敗：'+e); }
+        }
+        document.getElementById('search-controls').classList.remove('hidden');
     }
 
-    function playId(id,title){
-        if(blocked[id]) return nextTrack();
-        tracks = [{id,title}]; idx = 0;
-        load(id,title);
+    function addResultItem(id, title, thumb) {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <img src="${thumb || 'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg'}">
+            <div class="info"><div class="title">${title}</div></div>
+            <div class="actions">
+                <button onclick="playId('${id}','${title.replace(/'/g,"\\'")}')">播放</button>
+                <button onclick="addFav('${id}','${title.replace(/'/g,"\\'")}')">Heart</button>
+            </div>`;
+        document.getElementById('results').appendChild(li);
     }
-    function playAllSearch(){
-        tracks = searchRes.map(i=>({id:i.id.videoId, title:i.snippet.title}));
-        idx = 0; load(tracks[0].id, tracks[0].title);
+
+    // 關鍵：根據當前頁面播放全部
+    function playCurrentPageAll(shuffle = false) {
+        let list = [];
+        if (currentTab === 'results') list = currentList;
+        else if (currentTab === 'favorites') list = favorites;
+        else if (currentTab === 'history') list = history;
+
+        if (list.length === 0) return alert('目前沒有歌曲');
+        tracks = shuffle ? [...list].sort(()=>Math.random()-0.5) : [...list];
+        idx = 0;
+        load(tracks[0].id, tracks[0].title);
     }
-    function addAllToFav(){
-        searchRes.forEach(i=>addFav(i.id.videoId, i.snippet.title));
+
+    function addCurrentPageToFav() {
+        let list = currentTab === 'results' ? currentList : favorites;
+        list.forEach(s => addFav(s.id, s.title));
     }
+
     function addFav(id,title){
         if(!favorites.some(f=>f.id===id)){
             favorites.push({id,title});
-            localStorage.setItem('myfav', JSON.stringify(favorites));
+            localStorage.setItem('myfav',JSON.stringify(favorites));
             renderFav();
         }
     }
 
-    function playFav(m){
-        if(favorites.length===0) return;
-        mode = m==='shuffle'?'shuffle':'normal';
-        tracks = m==='shuffle'? [...favorites].sort(()=>Math.random()-0.5) : [...favorites];
-        idx = 0; load(tracks[0].id, tracks[0].title);
-    }
-
-    function toggleLoop(){
-        mode = mode==='loop'?'normal':'loop';
-        document.getElementById('loopBtn').classList.toggle('active-loop', mode==='loop');
+    function playId(id,title){
+        if(blocked[id]) return nextTrack();
+        tracks = [{id,title}]; idx = 0; load(id,title);
     }
 
     function load(id,title){
@@ -188,18 +205,30 @@
         document.getElementById('progress').style.width = '0%';
     }
 
-    function onStateChange(e){
-        const playIcon = document.querySelector('#playBtn span');
-        if(e.data===1) playIcon.textContent='pause';
-        if(e.data===2 || e.data===0) playIcon.textContent='play_arrow';
-        if(e.data===0){
-            if(mode==='loop' && tracks.length>0){
-                idx = 0; load(tracks[0].id, tracks[0].title);
-            } else nextTrack();
-        }
-        if(e.data===5) setTimeout(()=>checkBlock(),4000);
+    function toggleLoop(){
+        mode = mode==='loop'?'normal':'loop';
+        document.getElementById('loopBtn').classList.toggle('active-loop', mode==='loop');
     }
 
+    function nextTrack(){
+        if(tracks.length===0) return;
+        idx = (idx + 1) % tracks.length;
+        load(tracks[idx].id, tracks[idx].title);
+    }
+    function prevTrack(){
+        if(idx<=0) idx = tracks.length;
+        idx -= 2; nextTrack();
+    }
+    function togglePlay(){
+        player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo();
+    }
+    function onStateChange(e){
+        const icon = document.querySelector('#playBtn span');
+        if(e.data===1) icon.textContent='pause';
+        if(e.data===2 || e.data===0) icon.textContent='play_arrow';
+        if(e.data===0 && mode==='loop') { idx = 0; load(tracks[0].id, tracks[0].title); }
+        if(e.data===5) setTimeout(()=>checkBlock(),4000);
+    }
     function checkBlock(){
         if(player.getPlayerState()!==1 && tracks[idx]){
             blocked[tracks[idx].id]=true;
@@ -207,31 +236,15 @@
             nextTrack();
         }
     }
-
-    function nextTrack(){
-        if(tracks.length===0) return;
-        if(mode==='shuffle') idx = Math.floor(Math.random()*tracks.length);
-        else idx = (idx+1) % tracks.length;
-        load(tracks[idx].id, tracks[idx].title);
-    }
-    function prevTrack(){
-        if(idx<=0) idx = tracks.length;
-        idx -= 2;
-        nextTrack();
-    }
-    function togglePlay(){
-        player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo();
-    }
-
     function updateProgress(){
-        if(!player || !player.getDuration) return;
+        if(!player?.getDuration) return;
         const cur = player.getCurrentTime()||0;
         const dur = player.getDuration()||0;
         if(dur>0) document.getElementById('progress').style.width = (cur/dur*100)+'%';
     }
     function seek(e){
         const rect = e.target.getBoundingClientRect();
-        const pos = (e.clientX - rect.left) / rect.width;
+        const pos = (e.clientX - rect.left)/rect.width;
         player.seekTo(pos * player.getDuration());
     }
 
@@ -239,8 +252,8 @@
         if(!history.some(h=>h.id===id)){
             history.unshift({id,title});
             if(history.length>100) history.pop();
-            localStorage.setItem('myhist', JSON.stringify(history));
-            renderHistory();
+            localStorage.setItem('myhist',JSON.stringify(history));
+            if(currentTab==='history') renderHistory();
         }
     }
 
@@ -248,8 +261,7 @@
         const ul=document.getElementById('favorites'); ul.innerHTML='';
         favorites.forEach((f,i)=>{
             const li=document.createElement('li');
-            li.innerHTML=`
-                <img src="https://i.ytimg.com/vi/${f.id}/mqdefault.jpg">
+            li.innerHTML=`<img src="https://i.ytimg.com/vi/${f.id}/mqdefault.jpg">
                 <div class="info"><div class="title">${f.title}</div></div>
                 <div class="actions">
                     <button onclick="playId('${f.id}','${f.title.replace(/'/g,"\\'")}')">播放</button>
@@ -257,27 +269,29 @@
                 </div>`;
             ul.appendChild(li);
         });
+        currentList = favorites;
     }
-
     function renderHistory(){
         const ul=document.getElementById('history'); ul.innerHTML='';
         history.forEach(h=>{
             const li=document.createElement('li');
-            li.innerHTML=`
-                <img src="https://i.ytimg.com/vi/${h.id}/mqdefault.jpg">
+            li.innerHTML=`<img src="https://i.ytimg.com/vi/${h.id}/mqdefault.jpg">
                 <div class="info"><div class="title">${h.title}</div></div>
                 <button onclick="playId('${h.id}','${h.title.replace(/'/g,"\\'")}')">播放</button>`;
             ul.appendChild(li);
         });
+        currentList = history;
     }
 
     function tab(t){
+        currentTab = t;
         document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
         event.target.classList.add('active');
-        document.querySelectorAll('ul, #fav-controls').forEach(el=>el.classList.add('hidden'));
+        document.querySelectorAll('ul, #fav-controls, #search-controls').forEach(el=>el.classList.add('hidden'));
         document.getElementById(t).classList.remove('hidden');
         if(t==='favorites'){ renderFav(); document.getElementById('fav-controls').classList.remove('hidden'); }
-        if(t==='history') renderHistory();
+        if(t==='history'){ renderHistory(); }
+        if(t==='results') document.getElementById('search-controls').classList.remove('hidden');
     }
 
     if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
