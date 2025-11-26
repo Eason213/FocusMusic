@@ -12,37 +12,32 @@
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:-apple-system,sans-serif;background:#000;color:#fff;min-height:100vh;}
-        #app{max-width:500px;margin:0 auto;background:#000;padding-bottom:160px;position:relative;}
+        #app{max-width:500px;margin:0 auto;background:#000;padding-bottom:170px;position:relative;}
 
-        /* 搜尋列 - 三等分完美比例 */
         #search-bar{padding:16px;background:#000;position:sticky;top:0;z-index:10;display:grid;grid-template-columns:1fr 110px 80px;gap:12px;align-items:center;}
         #search{padding:16px;background:#1a1a1a;border-radius:16px;color:#fff;font-size:18px;border:none;outline:none;}
         #search-type{padding:16px;background:#1a1a1a;color:#fff;border:none;border-radius:16px;font-size:16px;}
         #search-btn{background:#ff0000;color:#fff;border:none;border-radius:16px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
-        /* 控制按鈕 */
         .controls{padding:12px 16px;display:flex;gap:12px;flex-wrap:wrap;}
         .btn-big{padding:15px 28px;border-radius:16px;font-size:17px;font-weight:600;}
         .btn-green{background:#00d26a;}
         .btn-red{background:#ff0000;}
 
-        /* Tabs */
         #tabs{display:flex;background:#111;position:sticky;top:90px;z-index:9;}
         #tabs button{flex:1;padding:18px;font-size:17px;color:#888;background:none;border:none;}
         #tabs button.active{color:#ff0000;border-bottom:4px solid #ff0000;}
 
-        /* 結果卡片 - 固定寬度 + 右側上下按鈕 */
+        /* 強制整齊卡片 */
         .list{padding:8px 16px;}
-        .card{display:grid;grid-template-columns:80px 1fr 100px;padding:16px;background:#111;border-radius:16px;margin-bottom:12px;align-items:center;gap:12px;}
+        .card{display:grid;grid-template-columns:80px 1fr 110px;gap:12px;align-items:center;padding:16px;background:#111;border-radius:16px;margin-bottom:12px;}
         .card img{width:80px;height:80px;border-radius:12px;object-fit:cover;}
         .card-info .card-title{font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .card-info .card-artist{font-size:14px;color:#aaa;margin-top:4px;}
-        .card-actions{display:flex;flex-direction:column;gap:10px;}
-        .card-actions button{width:100%;padding:12px 8px;border-radius:12px;font-size:15px;}
+        .card-actions{display:grid;grid-template-rows:1fr 1fr;gap:10px;}
+        .card-actions button{width:100%;padding:12px 0;border-radius:12px;font-size:15px;}
         .btn-play{background:#ff0000;color:#fff;}
         .btn-fav{background:#333;color:#fff;}
 
-        /* 播放器 */
         #player{position:fixed;bottom:0;left:0;right:0;max-width:500px;margin:0 auto;background:rgba(0,0,0,0.97);backdrop-filter:blur(20px);padding:20px 16px;border-top:1px solid #333;}
         #now-playing{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
         #now-thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#333;}
@@ -55,14 +50,12 @@
         #controls button{color:#fff;font-size:48px;background:none;border:none;width:70px;height:70px;display:flex;align-items:center;justify-content:center;}
         #loopBtn.active{color:#ff0000;}
 
-        #youtube-player{position:fixed;top:-100vh;width:1px;height:1px;opacity:0;}
         .hidden{display:none !important;}
     </style>
 </head>
 <body>
 <div id="app">
 
-    <!-- 搜尋列 -->
     <div id="search-bar">
         <input type="text" id="search" placeholder="搜尋歌曲或播放清單…">
         <select id="search-type">
@@ -87,7 +80,6 @@
     <div class="list hidden" id="favorites"></div>
     <div class="list hidden" id="history"></div>
 
-    <!-- 播放器 -->
     <div id="player">
         <div id="now-playing">
             <img id="now-thumb" src="" alt="">
@@ -116,12 +108,11 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-    const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 改這一行就好！
+    const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 改這一行！
 
     let player, tracks = [], idx = -1, loop = false;
-    let currentTab = 'results', currentSongs = [];
-    let favorites = JSON.parse(localStorage.getItem('fav')||'[]');
-    let history   = JSON.parse(localStorage.getItem('hist')||'[]');
+    let currentTab = 'results';
+    let resultsSongs = [], favorites = JSON.parse(localStorage.getItem('fav')||'[]'), history = JSON.parse(localStorage.getItem('hist')||'[]');
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('youtube-player', {
@@ -130,7 +121,9 @@
                 'onReady': ()=>setInterval(updateProgress, 500),
                 'onStateChange': e=>{
                     document.querySelector('#playBtn span').textContent = e.data===1?'pause':'play_arrow';
-                    if(e.data===0) loop ? (idx=0,playCurrent()) : nextTrack();
+                    if(e.data===0){
+                        loop ? playCurrent() : nextTrack();
+                    }
                 }
             }
         });
@@ -141,7 +134,8 @@
         const type = document.getElementById('search-type').value;
         if(!q) return;
 
-        currentSongs = []; const container = document.getElementById('results'); container.innerHTML = '';
+        resultsSongs = [];
+        const container = document.getElementById('results'); container.innerHTML = '';
 
         if(type==='playlist'){
             const res = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&q=${encodeURIComponent(q)}&part=snippet&type=playlist&maxResults=10`);
@@ -151,10 +145,9 @@
                 const plData = await plRes.json();
                 plData.items.forEach(p=>{
                     if(p.snippet.resourceId?.videoId && p.snippet.title!=='Private video'){
-                        const id = p.snippet.resourceId.videoId;
-                        const title = p.snippet.title;
-                        currentSongs.push({id,title,thumb:p.snippet.thumbnails?.medium?.url});
-                        addCard(container, id, title, p.snippet.thumbnails?.medium?.url);
+                        const song = {id: p.snippet.resourceId.videoId, title: p.snippet.title, thumb: p.snippet.thumbnails?.medium?.url};
+                        resultsSongs.push(song);
+                        addCard(container, song);
                     }
                 });
             }
@@ -163,51 +156,54 @@
             const data = await res.json();
             data.items.forEach(item=>{
                 if(item.id?.videoId){
-                    const id = item.id.videoId;
-                    const title = item.snippet.title;
-                    const thumb = item.snippet.thumbnails.medium?.url;
-                    currentSongs.push({id,title,thumb});
-                    addCard(container, id, title, thumb);
+                    const song = {id: item.id.videoId, title: item.snippet.title, thumb: item.snippet.thumbnails.medium?.url};
+                    resultsSongs.push(song);
+                    addCard(container, song);
                 }
             });
         }
         document.getElementById('page-controls').classList.remove('hidden');
     }
 
-    function addCard(container, id, title, thumb){
+    function addCard(container, song){
         const div = document.createElement('div');
         div.className = 'card';
         div.innerHTML = `
-            <img src="${thumb||'https://i.ytimg.com/vi/'+id+'/mqdefault.jpg'}">
+            <img src="${song.thumb||'https://i.ytimg.com/vi/'+song.id+'/mqdefault.jpg'}">
             <div class="card-info">
-                <div class="card-title">${title}</div>
+                <div class="card-title">${song.title}</div>
             </div>
             <div class="card-actions">
-                <button class="btn-play" onclick="playId('${id}','${title.replace(/'/g,"\\'")}','${thumb||''}')">播放</button>
-                <button class="btn-fav" onclick="addFav('${id}','${title.replace(/'/g,"\\'")}')">Heart</button>
+                <button class="btn-play" onclick="playSong('${song.id}','${song.title.replace(/'/g,"\\'")}','${song.thumb||''}')">播放</button>
+                <button class="btn-fav" onclick="addToFavorites('${song.id}','${song.title.replace(/'/g,"\\'")}')">Heart</button>
             </div>`;
         container.appendChild(div);
     }
 
-    function playId(id,title,thumb){
-        tracks = [{id,title,thumb}]; idx = 0;
+    function playSong(id, title, thumb){
+        tracks = [{id, title, thumb}];
+        idx = 0;
         playCurrent();
     }
 
     function playCurrentAll(){
-        if(currentSongs.length===0) return;
-        tracks = currentSongs.map(s=>({id:s.id,title:s.title,thumb:s.thumb}));
-        idx = 0; playCurrent();
+        let list = currentTab==='results' ? resultsSongs : 
+                   currentTab==='favorites' ? favorites : history;
+        if(list.length===0) return;
+        tracks = list.map(s=>({id:s.id, title:s.title, thumb:s.thumb}));
+        idx = 0;
+        playCurrent();
     }
 
     function addCurrentToFav(){
-        currentSongs.forEach(s=>addFav(s.id,s.title));
+        const list = currentTab==='results' ? resultsSongs : favorites;
+        list.forEach(s=>addToFavorites(s.id, s.title));
     }
 
-    function addFav(id,title){
+    function addToFavorites(id, title){
         if(!favorites.some(f=>f.id===id)){
-            favorites.push({id,title});
-            localStorage.setItem('fav',JSON.stringify(favorites));
+            favorites.push({id, title});
+            localStorage.setItem('fav', JSON.stringify(favorites));
             if(currentTab==='favorites') renderFavorites();
         }
     }
@@ -251,12 +247,12 @@
     }
 
     function renderFavorites(){
-        const c = document.getElementById('favorites'); c.innerHTML=''; currentSongs = favorites;
-        favorites.forEach((s,i)=>addCard(c, s.id, s.title, 'https://i.ytimg.com/vi/'+s.id+'/mqdefault.jpg'));
+        const c = document.getElementById('favorites'); c.innerHTML='';
+        favorites.forEach(s=>addCard(c, s));
     }
     function renderHistory(){
-        const c = document.getElementById('history'); c.innerHTML=''; currentSongs = history;
-        history.forEach(s=>addCard(c, s.id, s.title, 'https://i.ytimg.com/vi/'+s.id+'/mqdefault.jpg'));
+        const c = document.getElementById('history'); c.innerHTML='';
+        history.forEach(s=>addCard(c, s));
     }
 
     function switchTab(t){
@@ -265,7 +261,8 @@
         event.target.classList.add('active');
         document.querySelectorAll('.list, #page-controls').forEach(el=>el.classList.add('hidden'));
         document.getElementById(t).classList.remove('hidden');
-        if(t!=='results') document.getElementById('page-controls').classList.remove('hidden');
+        document.getElementById('page-controls').classList.remove('hidden');
+        
         if(t==='favorites') renderFavorites();
         if(t==='history') renderHistory();
     }
