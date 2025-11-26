@@ -11,43 +11,47 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
-        body{font-family:-apple-system,sans-serif;background:#000;color:#fff;min-height:100vh;line-height:1.5;}
-        #app{max-width:500px;margin:0 auto;background:#000;padding-bottom:140px;}
+        body{font-family:-apple-system,sans-serif;background:#000;color:#fff;min-height:100vh;}
+        #app{max-width:500px;margin:0 auto;background:#000;padding-bottom:160px;position:relative;}
 
-        /* 搜尋列 */
-        #search-bar{padding:16px 16px 12px;background:#000;position:sticky;top:0;z-index:10;}
-        #search-input{flex:1;padding:16px;background:#1a1a1a;border:none;border-radius:16px;color:#fff;font-size:18px;}
-        #search-type{padding:16px 12px;background:#1a1a1a;color:#fff;border:none;border-radius:16px;font-size:16px;}
-        #search-btn{background:#ff0000;color:#fff;padding:16px 24px;border-radius:16px;font-size:24px;}
+        /* 搜尋列 - 三等分完美比例 */
+        #search-bar{padding:16px;background:#000;position:sticky;top:0;z-index:10;display:grid;grid-template-columns:1fr 110px 80px;gap:12px;align-items:center;}
+        #search{padding:16px;background:#1a1a1a;border-radius:16px;color:#fff;font-size:18px;border:none;outline:none;}
+        #search-type{padding:16px;background:#1a1a1a;color:#fff;border:none;border-radius:16px;font-size:16px;}
+        #search-btn{background:#ff0000;color:#fff;border:none;border-radius:16px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
         /* 控制按鈕 */
         .controls{padding:12px 16px;display:flex;gap:12px;flex-wrap:wrap;}
-        .btn-big{padding:14px 24px;border-radius:16px;font-size:17px;font-weight:600;}
-        .btn-green{background:#00d26a;color:#fff;}
-        .btn-red{background:#ff0000;color:#fff;}
+        .btn-big{padding:15px 28px;border-radius:16px;font-size:17px;font-weight:600;}
+        .btn-green{background:#00d26a;}
+        .btn-red{background:#ff0000;}
 
         /* Tabs */
         #tabs{display:flex;background:#111;position:sticky;top:90px;z-index:9;}
         #tabs button{flex:1;padding:18px;font-size:17px;color:#888;background:none;border:none;}
         #tabs button.active{color:#ff0000;border-bottom:4px solid #ff0000;}
 
-        /* 結果卡片 */
+        /* 結果卡片 - 固定寬度 + 右側上下按鈕 */
         .list{padding:8px 16px;}
-        .card{display:flex;align-items:center;padding:16px;background:#111;border-radius:16px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3);}
-        .card img{width:72px;height:72px;border-radius:12px;object-fit:cover;margin-right:16px;}
-        .card-info{flex:1;}
-        .card-title{font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .card-artist{font-size:14px;color:#aaa;margin-top:4px;}
-        .card-actions button{padding:10px 16px;border-radius:12px;font-size:15px;margin-left:8px;}
+        .card{display:grid;grid-template-columns:80px 1fr 100px;padding:16px;background:#111;border-radius:16px;margin-bottom:12px;align-items:center;gap:12px;}
+        .card img{width:80px;height:80px;border-radius:12px;object-fit:cover;}
+        .card-info .card-title{font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .card-info .card-artist{font-size:14px;color:#aaa;margin-top:4px;}
+        .card-actions{display:flex;flex-direction:column;gap:10px;}
+        .card-actions button{width:100%;padding:12px 8px;border-radius:12px;font-size:15px;}
         .btn-play{background:#ff0000;color:#fff;}
         .btn-fav{background:#333;color:#fff;}
 
         /* 播放器 */
-        #player{position:fixed;bottom:0;left:0;right:0;max-width:500px;margin:0 auto;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);padding:20px 16px;border-top:1px solid #333;}
-        #current-title{font-size:19px;font-weight:600;text-align:center;margin-bottom:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        #progress-container{height:6px;background:#333;border-radius:3px;margin:12px 0;overflow:hidden;cursor:pointer;}
+        #player{position:fixed;bottom:0;left:0;right:0;max-width:500px;margin:0 auto;background:rgba(0,0,0,0.97);backdrop-filter:blur(20px);padding:20px 16px;border-top:1px solid #333;}
+        #now-playing{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+        #now-thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#333;}
+        #now-info{flex:1;}
+        #current-title{font-size:18px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        #time-info{font-size:14px;color:#aaa;display:flex;justify-content:space-between;}
+        #progress-container{height:6px;background:#333;border-radius:3px;margin:12px 0;overflow:hidden;position:relative;cursor:pointer;}
         #progress{height:100%;width:0%;background:#ff0000;border-radius:3px;transition:width 0.2s;}
-        #controls{display:flex;justify-content:center;align-items:center;gap:32px;}
+        #controls{display:flex;justify-content:center;align-items:center;gap:36px;}
         #controls button{color:#fff;font-size:48px;background:none;border:none;width:70px;height:70px;display:flex;align-items:center;justify-content:center;}
         #loopBtn.active{color:#ff0000;}
 
@@ -58,8 +62,9 @@
 <body>
 <div id="app">
 
-    <div id="search-bar" style="display:flex;gap:10px;align-items:center;">
-        <input type="text" id="search" placeholder="搜尋歌曲或播放清單…" onkeypress="if(event.key==='Enter')search()">
+    <!-- 搜尋列 -->
+    <div id="search-bar">
+        <input type="text" id="search" placeholder="搜尋歌曲或播放清單…">
         <select id="search-type">
             <option value="video">歌曲</option>
             <option value="playlist">清單</option>
@@ -82,9 +87,21 @@
     <div class="list hidden" id="favorites"></div>
     <div class="list hidden" id="history"></div>
 
+    <!-- 播放器 -->
     <div id="player">
-        <div id="current-title">準備播放</div>
-        <div id="progress-container" onclick="seek(event)"><div id="progress"></div></div>
+        <div id="now-playing">
+            <img id="now-thumb" src="" alt="">
+            <div id="now-info">
+                <div id="current-title">準備播放</div>
+                <div id="time-info">
+                    <span id="current-time">0:00</span>
+                    <span id="total-time">0:00</span>
+                </div>
+            </div>
+        </div>
+        <div id="progress-container" onclick="seek(event)">
+            <div id="progress"></div>
+        </div>
         <div id="controls">
             <button id="loopBtn" onclick="toggleLoop()"><span class="material-icons">repeat</span></button>
             <button onclick="prevTrack()"><span class="material-icons">skip_previous</span></button>
@@ -102,21 +119,20 @@
     const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 改這一行就好！
 
     let player, tracks = [], idx = -1, loop = false;
-    let currentTab = 'results';
-    let currentSongs = [];
+    let currentTab = 'results', currentSongs = [];
     let favorites = JSON.parse(localStorage.getItem('fav')||'[]');
     let history   = JSON.parse(localStorage.getItem('hist')||'[]');
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('youtube-player', {
             playerVars: { playsinline:1, controls:0, rel:0 },
-            events: { 'onReady':()=>setInterval(()=>updateProgress(),500), 'onStateChange':e=>{
-                document.querySelector('#playBtn span').textContent = e.data===1?'pause':'play_arrow';
-                if(e.data===0){
-                    if(loop && tracks.length>0){ idx = 0; playCurrent(); }
-                    else nextTrack();
+            events: { 
+                'onReady': ()=>setInterval(updateProgress, 500),
+                'onStateChange': e=>{
+                    document.querySelector('#playBtn span').textContent = e.data===1?'pause':'play_arrow';
+                    if(e.data===0) loop ? (idx=0,playCurrent()) : nextTrack();
                 }
-            }}
+            }
         });
     }
 
@@ -125,22 +141,20 @@
         const type = document.getElementById('search-type').value;
         if(!q) return;
 
-        currentSongs = [];
-        const ul = document.getElementById('results'); ul.innerHTML = '';
+        currentSongs = []; const container = document.getElementById('results'); container.innerHTML = '';
 
         if(type==='playlist'){
             const res = await fetch(`https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&q=${encodeURIComponent(q)}&part=snippet&type=playlist&maxResults=10`);
             const data = await res.json();
             for(let item of data.items){
-                const plId = item.id.playlistId;
-                const plRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${API_KEY}&playlistId=${plId}&part=snippet&maxResults=50`);
+                const plRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?key=${API_KEY}&playlistId=${item.id.playlistId}&part=snippet&maxResults=50`);
                 const plData = await plRes.json();
                 plData.items.forEach(p=>{
-                    if(p.snippet.title!=='Private video' && p.snippet.resourceId?.videoId){
+                    if(p.snippet.resourceId?.videoId && p.snippet.title!=='Private video'){
                         const id = p.snippet.resourceId.videoId;
                         const title = p.snippet.title;
-                        currentSongs.push({id,title});
-                        addCard(id, title, p.snippet.thumbnails?.medium?.url);
+                        currentSongs.push({id,title,thumb:p.snippet.thumbnails?.medium?.url});
+                        addCard(container, id, title, p.snippet.thumbnails?.medium?.url);
                     }
                 });
             }
@@ -151,15 +165,16 @@
                 if(item.id?.videoId){
                     const id = item.id.videoId;
                     const title = item.snippet.title;
-                    currentSongs.push({id,title});
-                    addCard(id, title, item.snippet.thumbnails.medium?.url);
+                    const thumb = item.snippet.thumbnails.medium?.url;
+                    currentSongs.push({id,title,thumb});
+                    addCard(container, id, title, thumb);
                 }
             });
         }
         document.getElementById('page-controls').classList.remove('hidden');
     }
 
-    function addCard(id, title, thumb){
+    function addCard(container, id, title, thumb){
         const div = document.createElement('div');
         div.className = 'card';
         div.innerHTML = `
@@ -168,22 +183,21 @@
                 <div class="card-title">${title}</div>
             </div>
             <div class="card-actions">
-                <button class="btn-play" onclick="playId('${id}','${title.replace(/'/g,"\\'")}')">播放</button>
+                <button class="btn-play" onclick="playId('${id}','${title.replace(/'/g,"\\'")}','${thumb||''}')">播放</button>
                 <button class="btn-fav" onclick="addFav('${id}','${title.replace(/'/g,"\\'")}')">Heart</button>
             </div>`;
-        document.getElementById('results').appendChild(div);
+        container.appendChild(div);
     }
 
-    function playId(id,title){
-        tracks = [{id,title}]; idx = 0;
+    function playId(id,title,thumb){
+        tracks = [{id,title,thumb}]; idx = 0;
         playCurrent();
     }
 
     function playCurrentAll(){
         if(currentSongs.length===0) return;
-        tracks = [...currentSongs];
-        idx = 0;
-        playCurrent();
+        tracks = currentSongs.map(s=>({id:s.id,title:s.title,thumb:s.thumb}));
+        idx = 0; playCurrent();
     }
 
     function addCurrentToFav(){
@@ -199,35 +213,28 @@
     }
 
     function playCurrent(){
-        const song = tracks[idx];
-        document.getElementById('current-title').textContent = song.title;
-        addToHistory(song.id, song.title);
-        player.loadVideoById(song.id);
+        const s = tracks[idx];
+        document.getElementById('current-title').textContent = s.title;
+        document.getElementById('now-thumb').src = s.thumb || 'https://i.ytimg.com/vi/'+s.id+'/mqdefault.jpg';
+        addToHistory(s.id, s.title);
+        player.loadVideoById(s.id);
         document.querySelector('#playBtn span').textContent = 'pause';
     }
 
-    function nextTrack(){
-        if(tracks.length===0) return;
-        idx = (idx + 1) % tracks.length;
-        playCurrent();
-    }
-    function prevTrack(){
-        if(tracks.length===0) return;
-        idx = idx<=0 ? tracks.length-1 : idx-1;
-        playCurrent();
-    }
-    function togglePlay(){
-        player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo();
-    }
-    function toggleLoop(){
-        loop = !loop;
-        document.getElementById('loopBtn').classList.toggle('active',loop);
-    }
+    function nextTrack(){ idx = (idx + 1) % tracks.length; playCurrent(); }
+    function prevTrack(){ idx = idx<=0 ? tracks.length-1 : idx-1; playCurrent(); }
+    function togglePlay(){ player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
+    function toggleLoop(){ loop = !loop; document.getElementById('loopBtn').classList.toggle('active',loop); }
+
     function updateProgress(){
         if(!player.getDuration) return;
-        const p = (player.getCurrentTime()||0) / player.getDuration() * 100;
-        document.getElementById('progress').style.width = p + '%';
+        const cur = player.getCurrentTime()||0;
+        const dur = player.getDuration()||0;
+        document.getElementById('progress').style.width = (cur/dur*100)+'%';
+        document.getElementById('current-time').textContent = formatTime(cur);
+        document.getElementById('total-time').textContent = formatTime(dur);
     }
+    function formatTime(t){ const m=Math.floor(t/60); const s=Math.floor(t%60); return `${m}:${s<10?'0'+s:s}`; }
     function seek(e){
         const rect = e.currentTarget.getBoundingClientRect();
         const pos = (e.clientX - rect.left)/rect.width;
@@ -244,45 +251,23 @@
     }
 
     function renderFavorites(){
-        const container = document.getElementById('favorites'); container.innerHTML='';
-        currentSongs = favorites;
-        favorites.forEach((s,i)=>{
-            const div = document.createElement('div');
-            div.className='card';
-            div.innerHTML=`<img src="https://i.ytimg.com/vi/${s.id}/mqdefault.jpg">
-                <div class="card-info"><div class="card-title">${s.title}</div></div>
-                <div class="card-actions">
-                    <button class="btn-play" onclick="playId('${s.id}','${s.title.replace(/'/g,"\\'")}')">播放</button>
-                    <button class="btn-fav" onclick="favorites.splice(${i},1);localStorage.setItem('fav',JSON.stringify(favorites));renderFavorites();">刪除</button>
-                </div>`;
-            container.appendChild(div);
-        });
+        const c = document.getElementById('favorites'); c.innerHTML=''; currentSongs = favorites;
+        favorites.forEach((s,i)=>addCard(c, s.id, s.title, 'https://i.ytimg.com/vi/'+s.id+'/mqdefault.jpg'));
     }
-
     function renderHistory(){
-        const container = document.getElementById('history'); container.innerHTML='';
-        currentSongs = history;
-        history.forEach(s=>{
-            const div = document.createElement('div');
-            div.className='card';
-            div.innerHTML=`<img src="https://i.ytimg.com/vi/${s.id}/mqdefault.jpg">
-                <div class="card-info"><div class="card-title">${s.title}</div></div>
-                <button class="btn-play" onclick="playId('${s.id}','${s.title.replace(/'/g,"\\'")}')">播放</button>`;
-            container.appendChild(div);
-        });
+        const c = document.getElementById('history'); c.innerHTML=''; currentSongs = history;
+        history.forEach(s=>addCard(c, s.id, s.title, 'https://i.ytimg.com/vi/'+s.id+'/mqdefault.jpg'));
     }
 
-    function switchTab(tab){
-        currentTab = tab;
+    function switchTab(t){
+        currentTab = t;
         document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
         event.target.classList.add('active');
         document.querySelectorAll('.list, #page-controls').forEach(el=>el.classList.add('hidden'));
-        document.getElementById(tab).classList.remove('hidden');
-        if(tab!=='results') document.getElementById('page-controls').classList.remove('hidden');
-
-        if(tab==='favorites') renderFavorites();
-        if(tab==='history') renderHistory();
-        if(tab==='results') document.getElementById('page-controls').classList.remove('hidden');
+        document.getElementById(t).classList.remove('hidden');
+        if(t!=='results') document.getElementById('page-controls').classList.remove('hidden');
+        if(t==='favorites') renderFavorites();
+        if(t==='history') renderHistory();
     }
 
     if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
