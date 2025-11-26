@@ -14,12 +14,13 @@
         button { background: #FF0000; color: #fff; border: none; padding: 5px 10px; border-radius: 20px; cursor: pointer; }
         #player { position: fixed; bottom: 0; width: 100%; background: #212121; padding: 10px; display: flex; justify-content: space-around; }
         #player-controls { display: flex; align-items: center; gap: 10px; }
-        #youtube-player { position: fixed; top: -100%; left: 0; width: 1px; height: 1px; opacity: 0; } /* 隱藏視窗，只播聲 */
+        #youtube-player { position: fixed; top: -100%; left: 0; width: 1px; height: 1px; opacity: 0; } /* 隱藏，只播聲 */
         .hidden { display: none; }
         #tabs { display: flex; justify-content: space-around; background: #212121; padding: 10px; }
         #tabs button { background: none; color: #fff; border: none; padding: 10px; }
         .active { border-bottom: 2px solid #FF0000; }
         #error { color: #FF0000; padding: 10px; display: none; }
+        #unmute-btn { background: #00FF00; } /* 綠色解鎖按鈕 */
     </style>
 </head>
 <body>
@@ -43,24 +44,59 @@
     <div id="player">
         <div id="player-controls">
             <span id="current-title">無播放</span>
-            <button onclick="togglePlay()">播放/暫停</button>
+            <button id="play-btn" onclick="togglePlay()">播放</button>
             <button onclick="nextTrack()">下一首</button>
+            <button id="unmute-btn" onclick="unmute()" style="display:none;">解鎖聲音</button>
         </div>
     </div>
 
-    <iframe id="youtube-player" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    <div id="youtube-player"></div> <!-- API 會替換成 iframe -->
 
+    <script src="https://www.youtube.com/iframe_api"></script> <!-- YouTube API -->
     <script>
         const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 記得換！
         const BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
+        let player; // YouTube Player 實例
         let currentTrack = null;
         let tracks = [];
         let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
         let history = JSON.parse(localStorage.getItem('history')) || [];
         let playlists = JSON.parse(localStorage.getItem('playlists')) || [{id: 'default', name: '我的最愛', tracks: []}];
-        const player = document.getElementById('youtube-player');
         const errorDiv = document.getElementById('error');
         const currentTitle = document.getElementById('current-title');
+        const playBtn = document.getElementById('play-btn');
+        const unmuteBtn = document.getElementById('unmute-btn');
+
+        // YouTube API 就緒
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '1',
+                width: '1',
+                videoId: '',
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': 0,
+                    'showinfo': 0,
+                    'modestbranding': 1,
+                    'rel': 0,
+                    'mute': 1 // 先靜音，Safari 允許
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            // 準備好後，可控制
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING) {
+                unmuteBtn.style.display = 'block'; // 顯示解鎖
+            }
+        }
 
         // 錯誤顯示
         function showError(msg) {
@@ -101,22 +137,16 @@
             }
         }
 
-        // 播放（用 iframe 嵌入）
+        // 播放
         function play(id, title, type = 'video') {
             try {
                 currentTrack = {id, title, type};
                 currentTitle.textContent = title;
                 addToHistory(id, title);
                 tracks.unshift({id, title, type});
-                const src = `https://www.youtube.com/embed/${id}?playsinline=1&autoplay=1&controls=0&showinfo=0&modestbranding=1&rel=0${type === 'playlist' ? '&playlist=' + id : ''}`;
-                player.src = src;
-                player.style.display = 'block'; // 顯示隱藏 iframe
-                // iOS 需要用戶互動，點播後才允許
-                player.onload = () => {
-                    if (player.contentWindow && player.contentWindow.postMessage) {
-                        player.contentWindow.postMessage({event: 'command', func: 'playVideo', args: []}, '*');
-                    }
-                };
+                player.loadVideoById({videoId: id, suggestedQuality: 'small'}); // 用 API 載入
+                player.mute(); // 先靜音
+                player.playVideo();
             } catch (e) {
                 showError('播放失敗: ' + e.message);
             }
@@ -124,9 +154,21 @@
 
         // 切換播放/暫停
         function togglePlay() {
-            if (player.src) {
-                player.contentWindow.postMessage({event: 'command', func: player.paused ? 'playVideo' : 'pauseVideo', args: []}, '*');
+            if (player.getPlayerState() === 1) { // 播中
+                player.pauseVideo();
+                playBtn.textContent = '播放';
+            } else {
+                player.playVideo();
+                playBtn.textContent = '暫停';
             }
+        }
+
+        // 解鎖聲音（用戶互動後 unmute）
+        function unmute() {
+            player.unMute();
+            unmuteBtn.style.display = 'none';
+            showError('聲音已解鎖！'); // 改成綠訊息
+            errorDiv.style.color = '#00FF00';
         }
 
         // 下一首
@@ -202,9 +244,9 @@
         }
 
         // Tab 切換
-        function showTab(tab) {
+        function showTab(tab, e) {
             document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            e.target.classList.add('active');
             document.querySelectorAll('ul').forEach(u => u.classList.add('hidden'));
             document.getElementById(tab + (tab === 'search' ? '' : 's')).classList.remove('hidden');
             if (tab !== 'search') renderList(tab);
