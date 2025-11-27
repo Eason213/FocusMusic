@@ -8,12 +8,11 @@ searchInput.addEventListener('keyup', async e => {
 
   const query = searchInput.value.trim();
   if (!query) {
-    results.innerHTML = '';
     searchContainer.classList.remove('active');
+    results.innerHTML = '';
     return;
   }
 
-  // 1. 顯示「搜尋中…」
   searchContainer.classList.add('active');
   results.innerHTML = `
     <div class="loading">
@@ -23,90 +22,77 @@ searchInput.addEventListener('keyup', async e => {
   `;
 
   try {
-    const res = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=30&q=${encodeURIComponent(query + ' focus music lofi study ambient -live')}&videoDuration=short&key=${YOUTUBE_API_KEY}`
+    // 第一步：搜尋影片
+    const searchRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=30&q=${encodeURIComponent(query + ' focus lofi study ambient -live')}&videoDuration=short&key=${YOUTUBE_API_KEY}`
     );
 
-    // 2. 網路根本連不到（例如沒網路、API Key 錯、被防火牆擋）
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    // 3. 每日額度用完會回傳 error
-    if (data.error) {
-      if (data.error.code === 403) {
-        results.innerHTML = `
-          <div class="error-msg">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-            <p>今日搜尋額度已達上限<br><small>明天自動恢復，或換個 API Key</small></p>
-          </div>
-        `;
-      } else {
-        throw new Error(data.error.message);
+    // 網路根本連不到（飛航模式、斷網、被牆）
+    if (!searchRes.ok) {
+      if (searchRes.status >= 500) {
+        throw new Error('YouTube 伺服器暫時有問題');
       }
-      return;
+      if (searchRes.status === 403) {
+        throw new Error('API Key 無效或今日額度已滿');
+      }
+      throw new Error('無法連線到 YouTube');
     }
 
-    if (!data.items || data.items.length === 0) {
-      results.innerHTML = `
-        <div class="empty-msg">
-          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-          <p>找不到相關結果</p>
-          <small>試試「lofi」、「rain」、「focus」之類的關鍵字</small>
-        </div>
-      `;
-      return;
+    const searchData = await searchRes.json();
+
+    // Google 官方額度用完的錯誤
+    if (searchData.error) {
+      if (searchData.error.code === 403) {
+        throw new Error('今日搜尋額度已達上限<br><small>明天自動恢復</small>');
+      }
+      throw new Error('YouTube API 發生錯誤');
     }
 
-    // 正常拿到影片 ID 後，再去拿長度…
-    const videoIds = data.items.map(item => item.id.videoId).join(',');
-    const detailsRes = await fetch(
+    if (!searchData.items || searchData.items.length === 0) {
+      throw new Error('找不到相關影片<br><small>試試「lofi」「rain」「focus」等關鍵字</small>');
+    }
+
+    // 第二步：取影片長度
+    const videoIds = searchData.items.map(v => v.id.videoId).join(',');
+    const detailRes = await fetch(
       `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`
     );
 
-    if (!detailsRes.ok) throw new Error('獲取影片長度失敗');
+    if (!detailRes.ok) throw new Error('無法取得影片長度資訊');
 
-    const detailsData = await detailsRes.json();
+    const detailData = await detailRes.json();
 
-    // 組合成 playlist（跟之前一樣）
-    const tracks = detailsData.items
+    // 組合成最終播放清單（過濾 >5 分鐘）
+    const tracks = detailData.items
       .map((v, i) => {
         const sec = parseDuration(v.contentDetails.duration);
-        if (sec > 300) return null;  // 超過 5 分鐘濾掉
+        if (sec > 300) return null;
         return {
-          title: data.items[i].snippet.title,
-          artist: data.items[i].snippet.channelTitle,
+          title: searchData.items[i].snippet.title.replace(/(\|.*|lofi hip hop radio.*)/gi, '').trim(),
+          artist: searchData.items[i].snippet.channelTitle,
           duration: sec,
           videoId: v.id,
-          thumb: data.items[i].snippet.thumbnails.medium?.url || data.items[i].snippet.thumbnails.default.url,
+          thumb: searchData.items[i].snippet.thumbnails.medium?.url || searchData.items[i].snippet.thumbnails.default.url,
         };
       })
       .filter(Boolean);
 
     if (tracks.length === 0) {
-      results.innerHTML = `
-        <div class="empty-msg">
-          <p>沒有 5 分鐘以內的結果</p>
-          <small>試著搜尋「lofi 1 hour」以外的關鍵字</small>
-        </div>
-      `;
-      return;
+      throw new Error('沒有 5 分鐘以內的結果<br><small>試著搜尋更短的關鍵字</small>');
     }
 
+    // 成功！
     playlist = tracks;
     renderResults(tracks);
 
   } catch (err) {
-    console.error(err);
-
-    // 最終的「搜尋失敗，請檢查網路」
+    // 所有錯誤統一在這裡顯示，絕對只會出現一行主要訊息
     results.innerHTML = `
       <div class="error-msg">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-        <p>搜尋失敗，請檢查網路</p>
-        <small style="color:#f33;">${err.message.includes('Failed to fetch') ? '無法連到 YouTube' : 'API 錯誤'}</small>
+        <p>${err.message.split('<br>')[0]}</p>
+        ${err.message.includes('<br>') ? `<small>${err.message.split('<br><small>')[1].replace('</small>','')}</small>` : ''}
+        <button onclick="location.reload()" class="retry-btn">重新載入</button>
       </div>
     `;
   }
