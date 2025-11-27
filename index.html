@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>FocusMusic</title>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;color:#fff;font-family:system-ui;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -65,8 +67,8 @@ h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-// 把這行換成你自己的 Key（一定要開啟 YouTube Data API v3）
-const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 這裡換成你的
+// 請把這行換成你真的有 quota 的 YouTube Data API v3 Key
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ';
 
 let player, songs = [], current = -1;
 let mode = 'song';
@@ -75,10 +77,7 @@ function onYouTubeIframeAPIReady() {
     player = new YT.Player('yt', {
         playerVars: { autoplay:1, controls:0, playsinline:1, rel:0 },
         events: {
-            'onReady': () => {
-                setInterval(updateProgress, 500);
-                loadRecommend();
-            },
+            'onReady': () => { setInterval(updateProgress, 500); loadRecommend(); },
             'onStateChange': e => {
                 document.querySelector('#playBtn span').textContent = e.data===1 ? 'pause' : 'play_arrow';
             }
@@ -95,13 +94,13 @@ function play(i) {
 }
 function togglePlay() { player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
 function next() { play(current >= songs.length-1 ? 0 : current+1); }
- prev() { play(current <= 0 ? songs.length-1 : current-1); }
+function prev() { play(current <= 0 ? songs.length-1 : current-1); }
 function seek(e) {
     const rect = e.currentTarget.getBoundingClientRect();
     player.seekTo((e.clientX-rect.left)/rect.width * player.getDuration());
 }
 function updateProgress() {
-    if(!player.getDuration) return;
+    if(!player || !player.getDuration) return;
     document.getElementById('bar').style.width = (player.getCurrentTime()/player.getDuration()*100)+'%';
 }
 function shufflePlay() {
@@ -110,39 +109,37 @@ function shufflePlay() {
         const j = Math.floor(Math.random()*(i+1));
         [a[i],a[j]] = [a[j],a[i]];
     }
-    songs = a;
-    render(songs);
-    play(0);
+    songs = a; render(songs); play(0);
 }
 
 function render(arr) {
     const g = document.getElementById('grid');
     g.innerHTML = '';
     arr.forEach((s,i) => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.innerHTML = `
-            <img src="${s.thumb}" onerror="this.src='https://via.placeholder.com/200/222/888?text=♪'">
+        const d = document.createElement('div');
+        d.className = 'card';
+        d.innerHTML = `
+            <img src="${s.thumb}" onerror="this.src='https://via.placeholder.com/200/222/888?text=No+Image'">
             <h3>${s.title.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</h3>
             <div class="play" onclick="event.stopPropagation();play(${i})">
                 <span class="material-icons-outlined">play_arrow</span>
             </div>
         `;
-        div.onclick = () => play(i);
-        g.appendChild(div);
+        d.onclick = () => play(i);
+        g.appendChild(d);
     });
 }
 
 async function loadRecommend() {
     document.getElementById('pageTitle').textContent = '為你推薦';
     try {
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
-        if (!res.ok) throw new Error('API 錯誤');
-        const d = await res.json();
+        const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
+        if(!r.ok) throw 'API Error';
+        const d = await r.json();
         songs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
         render(songs);
     } catch(e) {
-        document.getElementById('grid').innerHTML = `<div style="text-align:center;padding:50px;color:#f66;">載入失敗<br><br>請確認：<br>1. 已替換第 91 行的 KEY<br>2. Google Cloud 專案已開啟 YouTube Data API v3<br>3. API Key 有配額且未被停用</div>`;
+        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#aaa;font-size:14px;">載入失敗<br><br>請確認 API Key 已正確填寫<br>並在 Google Cloud 開啟 YouTube Data API v3</div>';
     }
 }
 
@@ -150,30 +147,20 @@ async function search() {
     const q = document.getElementById('search').value.trim();
     if(!q) return;
     document.getElementById('pageTitle').textContent = '搜尋結果';
-    try {
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
-        const d = await res.json();
-        songs = d.items.filter(x=>x.id?.videoId).map(x=>({
-            id:x.id.videoId,
-            title:x.snippet.title,
-            thumb:x.snippet.thumbnails.medium?.url||''
-        }));
-        render(songs);
-    } catch(e) {
-        document.getElementById('grid').innerHTML = '<div style="color:#f66;text-align:center;padding:50px;">搜尋失敗，請檢查 API Key</div>';
-    }
+    const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
+    const d = await r.json();
+    songs = d.items.filter(x=>x.id?.videoId).map(x=>({id:x.id.videoId,title:x.snippet.title,thumb:x.snippet.thumbnails.medium?.url||''}));
+    render(songs);
 }
 
 function toggleMode() {
     mode = mode==='song' ? 'playlist' : 'song';
     document.getElementById('filter').textContent = mode==='song'?'歌曲':'播放清單';
-    // 播放清單功能先留著，之後再加
     if(mode==='playlist'){
-        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:80px;color:#888;">播放清單功能開發中…</div>';
+        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#888;">播放清單功能即將推出…</div>';
     }else loadRecommend();
 }
 
-// 啟動
 onYouTubeIframeAPIReady();
 </script>
 </body>
