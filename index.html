@@ -8,10 +8,11 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;color:#fff;font-family:system-ui;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-header{height:70px;background:#000;display:flex;align-items:center;padding:0 12px;gap:10px;position:relative;z-index:10;}
+header{height:70px;background:#000;display:flex;align-items:center;padding:0 12px;gap:10px;z-index:10;}
 header h1{color:#1ed760;font-size:26px;font-weight:900;}
 #search{flex:1;background:#222;color:#fff;padding:12px 16px;border-radius:30px;font-size:16px;outline:none;border:none;min-width:0;}
-#refresh{background:#333;color:#fff;padding:8px 12px;border-radius:20px;font-size:14px;cursor:pointer;}
+.header-btn{background:#333;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+#filter{background:#1ed760;color:#000;}
 main{flex:1;overflow-y:auto;padding:20px 16px 110px;}
 h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px;}
@@ -27,9 +28,8 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 #player img{width:56px;height:56px;border-radius:8px;}
 #nowTitle{font-weight:600;font-size:16px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .controls{display:flex;align-items:center;gap:20px;}
-.controls button{background:#191919;color:#fff;width:52px;height:52px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:30px;}
-#playBtn{background:#1ed760;color:#fff;width:68px;height:68px;font-size:38px!important;}
+.controls button{background:transparent;color:#aaa;width:50px;height:50px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:32px;}
+#playBtn{background:#1ed760;color:#fff;width:64px;height:64px;border-radius:50%;font-size:38px!important;box-shadow:0 8px 25px rgba(30,215,96,0.5);}
 .progress{position:absolute;bottom:0;left:0;right:0;height:4px;background:#333;cursor:pointer;}
 #bar{height:100%;width:0%;background:#1ed760;transition:width .1s linear;}
 .time{position:absolute;bottom:10px;left:20px;right:20px;display:flex;justify-content:space-between;color:#aaa;font-size:12px;z-index:10;}
@@ -41,8 +41,9 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 
 <header>
     <h1>FocusMusic</h1>
-    <input type="text" id="search" placeholder="搜尋歌曲…" onkeydown="if(event.key==='Enter')search()">
-    <div id="refresh" onclick="loadRecommend()">刷新</div>
+    <input type="text" id="search" placeholder="搜尋歌曲…" onkeydown="if(event.key==='Enter')doSearch()">
+    <div class="header-btn" onclick="loadRecommend()">刷新</div>
+    <div class="header-btn" id="filter" onclick="toggleMode()">歌曲</div>
 </header>
 
 <main>
@@ -71,17 +72,14 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 換成你的 YouTube API Key
-let player, songs = [], current = -1;
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 換成你的 Key
+let player, songs = [], current = -1, originalSongs = [];
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('yt', {
         playerVars: { autoplay:1, controls:0, playsinline:1, rel:0 },
         events: {
-            'onReady': () => {
-                setInterval(updateTime, 500);
-                loadRecommend();
-            },
+            'onReady': () => { setInterval(updateTime, 500); loadRecommend(); },
             'onStateChange': e => {
                 document.querySelector('#playBtn span').textContent = e.data===1 ? 'pause' : 'play_arrow';
             }
@@ -90,35 +88,38 @@ function onYouTubeIframeAPIReady() {
 }
 
 function play(i) {
+    if(!songs[i]) return;
     current = i;
     const s = songs[i];
     document.getElementById('nowTitle').textContent = s.title;
-    document.getElementById('thumb').src = s.thumb;
+    document.getElementById('thumb').src = s.thumb || '';
     player.loadVideoById(s.id);
 }
+
 function togglePlay() { player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
 function next() { play(current >= songs.length-1 ? 0 : current+1); }
 function prev() { play(current <= 0 ? songs.length-1 : current-1); }
 function seek(e) {
     const rect = e.currentTarget.getBoundingClientRect();
-    player.seekTo((e.clientX-rect.left)/rect.width * player.getDuration());
+    const pos = (e.clientX - rect.left) / rect.width;
+    player.seekTo(pos * player.getDuration());
 }
 function updateTime() {
     if(!player || !player.getDuration) return;
-    const cur = player.getCurrentTime()||0;
-    const dur = player.getDuration()||0;
+    const cur = player.getCurrentTime() || 0;
+    const dur = player.getDuration() || 0;
     document.getElementById('bar').style.width = (cur/dur*100)+'%';
-    document.getElementById('currentTime').textContent = format(cur);
-    document.getElementById('totalTime').textContent = format(dur);
+    document.getElementById('currentTime').textContent = fmt(cur);
+    document.getElementById('totalTime').textContent = fmt(dur);
 }
-function format(t){const m=Math.floor(t/60),s=Math.floor(t%60);return `${m}:${s<10?'0'+s:s}`;}
+function fmt(t){ const m=Math.floor(t/60); const s=Math.floor(t%60); return m+':'+(s<10?'0':'')+s; }
 
 function shufflePlay() {
-    if(songs.length<=1) return;
+    if(songs.length < 2) return play(0);
     const arr = [...songs];
     for(let i=arr.length-1;i>0;i--){
-        const j=Math.floor(Math.random()*(i+1));
-        [arr[i],arr[j]]=[arr[j],arr[i]];
+        const j = Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]] = [arr[j],arr[i]];
     }
     songs = arr;
     play(0);
@@ -133,11 +134,11 @@ function render() {
         d.innerHTML = `
             <img src="${s.thumb}" onerror="this.src='https://via.placeholder.com/200/222/888?text=No+Image'">
             <h3>${s.title.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</h3>
-            <div class="play" onclick="play(${i})">
+            <div class="play" onclick="event.stopPropagation();play(${i})">
                 <span class="material-icons-outlined">play_arrow</span>
             </div>
         `;
-        d.addEventListener('click', () => play(i));
+        d.onclick = () => play(i);   // 這行最穩，手機一定觸發
         g.appendChild(d);
     });
 }
@@ -146,26 +147,40 @@ async function loadRecommend() {
     document.getElementById('pageTitle').textContent = '為你推薦';
     try {
         const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
+        if(!r.ok) throw '';
         const d = await r.json();
-        songs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
+        songs = originalSongs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
         render();
     } catch(e) {
         document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#f66;">載入失敗<br>請檢查 API Key</div>';
     }
 }
 
-async function search() {
+function doSearch() {
     const q = document.getElementById('search').value.trim();
     if(!q) return;
-    document.getElementById('pageTitle').textContent = '搜尋結果';
-    const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
-    const d = await r.json();
-    songs = d.items.filter(x=>x.id?.videoId).map(x=>({
-        id:x.id.videoId,
-        title:x.snippet.title,
-        thumb:x.snippet.thumbnails.medium?.url||''
-    }));
-    render();
+    document.getElementById('pageTitle').textContent = '搜尋：'+q;
+    fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`)
+        .then(r=>r.json())
+        .then(d=>{
+            songs = originalSongs = d.items.filter(x=>x.id?.videoId).map(x=>({
+                id:x.id.videoId,
+                title:x.snippet.title,
+                thumb:x.snippet.thumbnails.medium?.url||''
+            }));
+            render();
+        });
+}
+
+function toggleMode() {
+    const isSong = document.getElementById('filter').textContent === '歌曲';
+    document.getElementById('filter').textContent = isSong ? '播放清單' : '歌曲';
+    if(isSong){
+        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#888;">播放清單功能開發中…</div>';
+    }else{
+        songs = originalSongs;
+        render();
+    }
 }
 
 loadRecommend();
