@@ -7,48 +7,52 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;color:#fff;font-family:system-ui;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-header{height:70px;background:#111;display:flex;align-items:center;padding:0 16px;gap:12px;position:relative;z-index:10;}
+header{height:70px;background:#000;display:flex;align-items:center;padding:0 16px;gap:12px;position:relative;z-index:10;}
 header h1{color:#1ed760;font-size:28px;font-weight:900;}
-#search{flex:1;background:#fff;color:#000;padding:12px 16px;border-radius:30px;font-size:16px;outline:none;}
+#search{flex:1;background:#333;color:#fff;padding:12px 20px;border-radius:30px;font-size:16px;outline:none;border:none;}
+#filterBtn{background:#1ed760;color:#000;padding:8px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;}
 main{flex:1;overflow-y:auto;padding:20px 16px 100px;background:#000;}
-h1{font-size:32px;font-weight:900;margin-bottom:20px;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;}
-.card{background:#1a1a1a;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;}
-.card img{width:100%;aspect-ratio:1;object-fit:cover;}
-.card h3{padding:12px;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.play{position:absolute;right:12px;bottom:68px;width:56px;height:56px;background:#1ed760;color:#000;
-    border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:.3s;}
+h1{font-size:32px;font-weight:900;margin-bottom:20px;color:#fff;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px;}
+.card{background:#1a1a1a;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;transition:.2s;}
+.card:hover{transform:scale(1.05);}
+.card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;}
+.card h3{padding:12px;font-size:14px;font-weight:600;line-height:1.4;height:48px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.play{position:absolute;right:12px;bottom:68px;width:56px;height:56px;background:#1ed760;color:#000;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;opacity:0;transition:.3s;font-size:28px;box-shadow:0 8px 20px rgba(0,0,0,0.6);}
 .card:hover .play{opacity:1;}
 #player{position:fixed;bottom:0;left:0;right:0;height:90px;background:#000;border-top:1px solid #333;
-    display:flex;align-items:center;padding:0 16px;z-index:999;}
+    display:flex;align-items:center;padding:0 16px;z-index:999;gap:16px;}
 #player img{width:56px;height:56px;border-radius:8px;}
-#title{font-weight:600;margin-left:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.controls button{background:none;border:none;color:#fff;cursor:pointer;font-size:32px;margin:0 12px;}
+#nowTitle{font-weight:600;font-size:16px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.controls button{background:none;border:none;color:#fff;cursor:pointer;font-size:32px;}
 #playBtn{background:#1ed760;color:#000;width:56px;height:56px;border-radius:50%;font-size:36px!important;}
-#shuffleBtn{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1ed760;color:#000;
-    padding:16px 36px;border-radius:50px;font-size:18px;font-weight:900;cursor:pointer;z-index:99;}
+#shuffle{position:fixed;bottom:106px;left:50%;transform:translateX(-50%);background:#1ed760;color:#000;
+    padding:16px 36px;border-radius:50px;font-size:18px;font-weight:900;cursor:pointer;z-index:99;box-shadow:0 10px 30px rgba(30,215,96,0.4);}
 </style>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
 
 <header>
     <h1>FocusMusic</h1>
-    <input type="text" id="search" placeholder="搜尋歌曲…" onkeypress="if(event.key==='Enter') search()">
+    <input type="text" id="search" placeholder="搜尋歌曲或播放清單…" onkeypress="if(event.key==='Enter') search()">
+    <div id="filterBtn" onclick="toggleFilter()">歌曲</div>
 </header>
 
 <main>
-    <h1 id="title">為你推薦</h1>
+    <h1 id="pageTitle">為你推薦</h1>
     <div class="grid" id="grid"></div>
 </main>
 
-<div id="shuffleBtn" onclick="shuffle()">隨機播放全部</div>
+<div id="shuffle" onclick="shufflePlay()">隨機播放全部</div>
 
 <div id="player">
-    <img id="thumb" src="">
-    <div id="title">準備播放</div>
+    <img id="thumb" src="" alt="">
+    <div id="nowTitle">準備播放</div>
     <div class="controls">
         <button onclick="prev()">skip_previous</button>
-        <button id="playBtn" onclick="toggle()">play_arrow</button>
+        <button id="playBtn" onclick="togglePlay()">play_arrow</button>
         <button onclick="next()">skip_next</button>
     </div>
 </div>
@@ -57,84 +61,118 @@ h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 這裡換你的 YouTube API Key
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 換成你的 YouTube API Key
 let player, songs = [], current = -1;
+let mode = 'song'; // song 或 playlist
+let playlists = JSON.parse(localStorage.getItem('fm_pl')||'[]');
 
-// 強制一定會載入的播放器
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('yt', {
-        height: '0', width: '0',
-        playerVars: { autoplay: 1, controls: 0, playsinline: 1, rel: 0 },
-        events: { 'onReady': onPlayerReady }
+        playerVars: { autoplay:1, controls:0, playsinline:1, rel:0 },
+        events: { 'onReady': () => loadRecommend() }
     });
 }
-function onPlayerReady() {
-    loadRecommend(); // 載入完播放器後直接載推薦
-}
 
-// 播放核心（絕對穩）
-function play(index) {
-    current = index;
-    const s = songs[index];
-    document.getElementById('title').textContent = s.title;
+function play(i) {
+    current = i;
+    const s = songs[i];
+    document.getElementById('nowTitle').textContent = s.title;
     document.getElementById('thumb').src = s.thumb;
     player.loadVideoById(s.id);
-    document.querySelector('#playBtn').innerHTML = 'pause';
 }
-function toggle() { player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); }
-function next() { play((current + 1) % songs.length); }
+function togglePlay() { player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
+function next() { play((current + 1) % songs.length || 0); }
 function prev() { play(current <= 0 ? songs.length - 1 : current - 1); }
-function shuffle() {
-    const shuffled = [...songs].sort(() => Math.random() - 0.5);
-    songs = shuffled;
+function shufflePlay() {
+    const arr = [...songs];
+    arr.sort(() => Math.random() - 0.5);
+    songs = arr;
+    render(songs);
     play(0);
 }
 
-// 載入推薦（一定成功）
+// 完全乾淨的渲染
+function render(list) {
+    const g = document.getElementById('grid');
+    g.innerHTML = '';
+    list.forEach((item, i) => {
+        const d = document.createElement('div');
+        d.className = 'card';
+        d.innerHTML = `
+            <img src="${item.thumb}" onerror="this.src='https://via.placeholder.com/200/333/fff?text=♪'">
+            <h3>${item.title.replace(/&amp;/g,'&').replace(/&#39;/g,"'").substring(0,60)}</h3>
+            <div class="play" onclick="event.stopPropagation();play(${i})">
+                <span class="material-icons">play_arrow</span>
+            </div>
+        `;
+        if (mode === 'song') {
+            d.onclick = () => play(i);
+        } else {
+            d.onclick = () => playPlaylist(item.songs);
+        }
+        g.appendChild(d);
+    });
+}
+
 async function loadRecommend() {
-    document.getElementById('title').textContent = '為你推薦';
+    document.getElementById('pageTitle').textContent = '為你推薦';
     const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
-    const data = await res.json();
-    songs = data.items.map(v => ({
-        id: v.id,
-        title: v.snippet.title,
-        thumb: v.snippet.thumbnails.medium.url
+    const d = await res.json();
+    songs = d.items.map(v => ({id:v.id, title:v.snippet.title, thumb:v.snippet.thumbnails.medium.url}));
+    render(songs);
+}
+
+async function search() {
+    const q = document.getElementById('search').value.trim();
+    if (!q) return;
+    document.getElementById('pageTitle').textContent = '搜尋結果';
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
+    const d = await res.json();
+    songs = d.items.filter(i=>i.id?.videoId).map(i => ({
+        id: i.id.videoId,
+        title: i.snippet.title,
+        thumb: i.snippet.thumbnails.medium?.url || ''
     }));
     render(songs);
 }
 
-// 搜尋（一定成功）
-async function search() {
-    const q = document.getElementById('search').value.trim();
-    if (!q) return;
-    document.getElementById('title').textContent = '搜尋結果';
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
-    const data = await res.json();
-    songs = data.items
-        .filter(i => i.id?.videoId)
-        .map(i => ({
-            id: i.id.videoId,
-            title: i.snippet.title,
-            thumb: i.snippet.thumbnails.medium?.url || ''
-        }));
-    render(songs);
+function toggleFilter() {
+    mode = mode==='song' ? 'playlist' : 'song';
+    document.getElementById('filterBtn').textContent = mode==='song'?'歌曲':'播放清單';
+    if (mode==='playlist') {
+        document.getElementById('pageTitle').textContent = '你的播放清單';
+        render(playlists.length ? playlists.map(p=>({title:p.name, thumb:p.songs[0]?.thumb||'', songs:p.songs})) : []);
+    } else {
+        loadRecommend();
+    }
 }
 
-// 渲染卡片（最簡單的方式）
-function render(list) {
-    const grid = document.getElementById('grid');
-    grid.innerHTML = '';
-    list.forEach((s, i) => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.innerHTML = `
-            <img src="${s.thumb}">
-            <h3>${s.title.substring(0, 40)}${s.title.length > 40 ? '…' : ''}</h3>
-            <div class="play" onclick="play(${i})">play_arrow</div>
-        `;
-        grid.appendChild(div);
-    });
+function playPlaylist(pl) {
+    songs = pl;
+    render(songs);
+    play(0);
 }
+
+// 長按卡片加入播放清單（手機適用）
+document.getElementById('grid').addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    if (mode!=='song') return;
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const title = card.querySelector('h3').textContent;
+    const thumb = card.querySelector('img').src;
+    const idMatch = card.innerHTML.match(/play\((\d+)\)/);
+    if (!idMatch) return;
+    const idx = parseInt(idMatch[1]);
+    const song = songs[idx];
+    const name = prompt('加入哪個播放清單？', playlists[0]?.name || '我的最愛');
+    if (!name) return;
+    let pl = playlists.find(p=>p.name===name);
+    if (!pl) { pl={name,songs:[]}; playlists.push(pl); }
+    pl.songs.push(song);
+    localStorage.setItem('fm_pl', JSON.stringify(playlists));
+    alert('已加入「'+name+'」');
+});
 </script>
 </body>
 </html>
