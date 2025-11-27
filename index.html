@@ -10,12 +10,13 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;color:#fff;font-family:system-ui;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-header{height:70px;background:#000;display:flex;align-items:center;padding:0 16px;gap:12px;position:relative;z-index:10;}
-header h1{color:#1ed760;font-size:28px;font-weight:900;}
-#search{flex:1;background:#222;color:#fff;padding:12px 20px;border-radius:30px;font-size:16px;outline:none;border:none;}
-#filter{background:#1ed760;color:#000;padding:8px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;}
-main{flex:1;overflow-y:auto;padding:20px 16px 100px;}
-h1{font-size:32px;font-weight:900;margin-bottom:20px;}
+header{height:70px;background:#000;display:flex;align-items:center;padding:0 12px;gap:10px;position:relative;z-index:10;flex-wrap:nowrap;}
+header h1{color:#1ed760;font-size:26px;font-weight:900;white-space:nowrap;}
+#search{flex:1;background:#222;color:#fff;padding:12px 16px;border-radius:30px;font-size:16px;outline:none;border:none;min-width:0;}
+.header-btn{background:#333;color:#fff;padding:8px 12px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+#filter{background:#1ed760;color:#000;}
+main{flex:1;overflow-y:auto;padding:20px 16px 110px;}
+h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px;}
 .card{background:#1a1a1a;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;transition:.25s;}
 .card:hover{transform:scale(1.06);}
@@ -24,25 +25,32 @@ h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 .play{position:absolute;right:16px;bottom:70px;width:60px;height:60px;background:#1ed760;color:#000;border-radius:50%;
     display:flex;align-items:center;justify-content:center;opacity:0;transition:.3s;font-size:34px;box-shadow:0 8px 25px rgba(0,0,0,0.7);}
 .card:hover .play{opacity:1;}
+
+/* 播放器改橫向 */
 #player{position:fixed;bottom:0;left:0;right:0;height:90px;background:#000;border-top:1px solid #333;
     display:flex;align-items:center;padding:0 20px;z-index:999;gap:16px;}
 #player img{width:56px;height:56px;border-radius:8px;}
 #nowTitle{font-weight:600;font-size:16px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.controls button{background:#191919;color:#fff;width:52px;height:52px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:30px;}
-#playBtn{background:#1ed760;color:#fff;width:68px;height:68px;font-size:38px!important;}
+.controls{display:flex;align-items:center;gap:20px;}
+.controls button{background:transparent;color:#aaa;width:50px;height:50px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:32px;}
+.controls button:active{transform:scale(0.9);}
+#playBtn{background:#1ed760;color:#fff;width:64px;height:64px;border-radius:50%;font-size:38px!important;box-shadow:0 8px 25px rgba(30,215,96,0.5);}
 .progress{position:absolute;bottom:0;left:0;right:0;height:4px;background:#333;cursor:pointer;}
-#bar{height:100%;width:0%;background:#1ed760;transition:width .1s;}
+#bar{height:100%;width:0%;background:#1ed760;transition:width .1s linear;}
+
+/* 隨機播放全部（不再刷新畫面） */
 #shuffle{position:fixed;bottom:106px;left:50%;transform:translateX(-50%);background:#1ed760;color:#000;
-    padding:16px 40px;border-radius:50px;font-size:18px;font-weight:900;cursor:pointer;z-index:99;}
+    padding:16px 36px;border-radius:50px;font-size:17px;font-weight:900;cursor:pointer;z-index:99;
+    box-shadow:0 10px 30px rgba(30,215,96,0.4);}
 </style>
 </head>
 <body>
 
 <header>
     <h1>FocusMusic</h1>
-    <input type="text" id="search" placeholder="搜尋歌曲…" onkeypress="if(event.key==='Enter')search()">
-    <div id="filter" onclick="toggleMode()">歌曲</div>
+    <input type="text" id="search" placeholder="搜尋歌曲…">
+    <div class="header-btn" onclick="location.reload()">刷新</div>
+    <div class="header-btn" id="filter" onclick="toggleMode()">歌曲</div>
 </header>
 
 <main>
@@ -67,10 +75,9 @@ h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-// 請把這行換成你真的有 quota 的 YouTube Data API v3 Key
-const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ';
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 記得換成你的 Key
 
-let player, songs = [], current = -1;
+let player, songs = [], current = -1, originalSongs = [];
 let mode = 'song';
 
 function onYouTubeIframeAPIReady() {
@@ -103,13 +110,13 @@ function updateProgress() {
     if(!player || !player.getDuration) return;
     document.getElementById('bar').style.width = (player.getCurrentTime()/player.getDuration()*100)+'%';
 }
+
+/* 重點：隨機播放不再重新 render */
 function shufflePlay() {
-    const a = [...songs];
-    for(let i=a.length-1;i>0;i--){
-        const j = Math.floor(Math.random()*(i+1));
-        [a[i],a[j]] = [a[j],a[i]];
-    }
-    songs = a; render(songs); play(0);
+    if (songs.length <= 1) return;
+    const shuffled = [...songs].sort(() => Math.random() - 0.5);
+    songs = shuffled;
+    play(0); // 直接從第一首開始播，不刷新畫面
 }
 
 function render(arr) {
@@ -136,10 +143,10 @@ async function loadRecommend() {
         const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
         if(!r.ok) throw 'API Error';
         const d = await r.json();
-        songs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
+        songs = originalSongs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
         render(songs);
     } catch(e) {
-        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#aaa;font-size:14px;">載入失敗<br><br>請確認 API Key 已正確填寫<br>並在 Google Cloud 開啟 YouTube Data API v3</div>';
+        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#f66;">載入失敗<br>請檢查 API Key</div>';
     }
 }
 
@@ -149,7 +156,9 @@ async function search() {
     document.getElementById('pageTitle').textContent = '搜尋結果';
     const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
     const d = await r.json();
-    songs = d.items.filter(x=>x.id?.videoId).map(x=>({id:x.id.videoId,title:x.snippet.title,thumb:x.snippet.thumbnails.medium?.url||''}));
+    songs = originalSongs = d.items.filter(x=>x.id?.videoId).map(x=>({
+        id:x.id.videoId,title:x.snippet.title,thumb:x.snippet.thumbnails.medium?.url||''
+    }));
     render(songs);
 }
 
@@ -157,8 +166,11 @@ function toggleMode() {
     mode = mode==='song' ? 'playlist' : 'song';
     document.getElementById('filter').textContent = mode==='song'?'歌曲':'播放清單';
     if(mode==='playlist'){
-        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#888;">播放清單功能即將推出…</div>';
-    }else loadRecommend();
+        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#888;">播放清單功能開發中…</div>';
+    }else{
+        songs = originalSongs;
+        render(songs);
+    }
 }
 
 onYouTubeIframeAPIReady();
