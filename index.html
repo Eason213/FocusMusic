@@ -15,46 +15,80 @@
         body,html{background:var(--black);color:#fff;font-family:system-ui,sans-serif;overflow:hidden;height:100vh;}
         #app{display:flex;height:100vh;position:relative;}
 
-        nav{width:260px;background:var(--black);padding:20px 0;position:fixed;left:0;top:0;bottom:0;overflow-y:auto;z-index:10;transition:left .4s ease;}
+        /* 側邊欄 */
+        nav{
+            width:260px;background:var(--black);padding:20px 0;position:fixed;left:0;top:0;bottom:0;overflow-y:auto;z-index:10;
+            transition:left .4s cubic-bezier(0.4,0,0.2,1);
+        }
         nav.hidden{left:-260px;}
+
         .logo{padding:0 28px;margin-bottom:40px;}
         .logo h1{color:var(--green);font-size:36px;font-weight:900;}
-        .nav-item{display:flex;align-items:center;padding:14px 28px;color:#b3b3b3;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;}
+
+        .nav-item{
+            display:flex;align-items:center;padding:14px 28px;color:#b3b3b3;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;
+        }
         .nav-item:hover,.nav-item.active{color:#fff;background:rgba(255,255,255,.1);}
         .nav-item span.material-icons-round{font-size:26px;margin-right:18px;}
 
-        #toggle-sidebar{position:fixed;left:20px;top:20px;width:44px;height:44px;background:rgba(0,0,0,.6);border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:11;cursor:pointer;backdrop-filter:blur(12px);transition:left .4s;}
-        nav:not(.hidden)~#toggle-sidebar{left:270px;}
+        /* 頂部橫條 + 固定 FocusMusic 標題 */
+        .top-bar{
+            height:70px;background:rgba(0,0,0,.85);backdrop-filter:blur(20px);position:fixed;top:0;left:0;right:0;z-index:999;
+            display:flex;align-items:center;justify-content:space-between;padding:0 32px;
+        }
+        .top-bar h1{color:var(--green);font-size:32px;font-weight:900;}
 
-        main{margin-left:260px;flex:1;overflow-y:auto;background:linear-gradient(#1a1a1a,#121212);padding-bottom:100px;transition:margin-left .4s;}
-        nav.hidden~郊main{margin-left:80px;}
+        /* 收合按鈕（永遠不會擋到標題） */
+        #toggle-sidebar{
+            position:fixed;left:20px;top:20px;width:44px;height:44px;background:rgba(0,0,0,.6);border-radius:50%;
+            display:flex;align-items:center;justify-content:center;z-index:1000;cursor:pointer;backdrop-filter:blur(12px);
+            transition:left .4s cubic-bezier(0.4,0,0.2,1);
+        }
+        nav:not(.hidden)~.top-bar #toggle-sidebar{left:270px;}
 
-        .top-bar{height:70px;background:rgba(0,0,0,.7);backdrop-filter:blur(20px);position:sticky;top:0;z-index:9;display:flex;align-items:center;justify-content:space-between;padding:0 32px;}
-        .search-box{background:#fff;color:#000;border-radius:50px;padding:12px 20px;display:flex;align-items:center;gap:14px;width:420px;box-shadow:0 4px 15px rgba(0,0,0,.3);}
+        /* 主內容區（關鍵：收合時自動填滿） */
+        main{
+            margin-left:260px;margin-top:70px;flex:1;overflow-y:auto;background:linear-gradient(#1a1a1a,#121212);
+            padding:30px 40px 120px;transition:margin-left .4s cubic-bezier(0.4,0,0.2,1);
+        }
+        nav.hidden~main{margin-left:0 !important;}
+
+        .search-box{
+            background:#fff;color:#000;border-radius:50px;padding:12px 20px;display:flex;align-items:center;gap:14px;width:420px;
+            box-shadow:0 4px 15px rgba(0,0,0,.3);
+        }
         .search-box input{background:transparent;border:none;outline:none;font-size:16px;width:100%;}
 
-        section{padding:30px 40px;}
-        h1{font-size:52px;font-weight:900;margin-bottom:30px;}
+        section h1{font-size:52px;font-weight:900;margin-bottom:30px;}
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:26px;}
-        .card{background:var(--gray);border-radius:10px;padding:18px;transition:.3s;cursor:pointer;position:relative;overflow:hidden;}
+        .card{
+            background:var(--gray);border-radius:10px;padding:18px;transition:.3s;cursor:pointer;position:relative;overflow:hidden;
+        }
         .card:hover{background:#333;transform:translateY(-6px);}
         .card img{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:14px;}
         .card h3{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .card p{font-size:13px;color:#b3b3b3;margin-top:4px;}
-        .play-btn,.add-btn{position:absolute;bottom:84px;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.8);transition:.3s ease;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+        .play-btn,.add-btn{
+            position:absolute;bottom:84px;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            opacity:0;transform:scale(.8);transition:.3s ease;box-shadow:0 10px 30px rgba(0,0,0,.5);
+        }
         .play-btn{right:88px;background:var(--green);color:#000;}
         .add-btn{right:18px;background:rgba(255,255,255,.15);color:#fff;}
         .card:hover .play-btn,.card:hover .add-btn{opacity:1;transform:scale(1);}
 
-        #player{position:fixed;bottom:0;left:0;right:0;height:94px;background:var(--black);border-top:1px solid #282828;display:flex;align-items:center;padding:0 24px;z-index:9999;}
+        /* 播放器 */
+        #player{
+            position:fixed;bottom:0;left:0;right:0;height:94px;background:var(--black);border-top:1px solid #282828;
+            display:flex;align-items:center;padding:0 24px;z-index:999;
+        }
         .player-left{display:flex;align-items:center;gap:16px;flex:1;}
         .player-left img{width:60px;height:60px;border-radius:6px;}
         .player-center{flex:2;display:flex;flex-direction:column;align-items:center;gap:10px;}
         .player-controls{display:flex;align-items:center;gap:32px;}
         .player-controls button{background:none;border:none;color:#b3b3b3;cursor:pointer;transition:.2s;font-size:26px;}
         .player-controls button:hover{color:#fff;}
-        #0
         #playBtn{background:var(--green)!important;color:#000!important;width:52px;height:52px;border-radius:50%;font-size:30px!important;}
+        #loopBtn.active{color:var(--green);}
         .progress-bar{width:100%;height:5px;background:#404040;border-radius:3px;overflow:hidden;cursor:pointer;}
         .progress-fill{height:100%;width:0%;background:#fff;transition:width .1s;}
         .player-right{flex:1;display:flex;justify-content:flex-end;align-items:center;gap:16px;color:#b3b3b3;font-size:14px;}
@@ -64,10 +98,20 @@
 </head>
 <body>
 <div id="app">
-    <div id="toggle-sidebar" onclick="toggleSidebar()">
-        <span class="material-icons-round">menu</span>
+
+    <!-- 頂部橫條（固定） -->
+    <div class="top-bar">
+        <div id="toggle-sidebar" onclick="toggleSidebar()">
+            <span class="material-icons-round">menu</span>
+        </div>
+        <h1>FocusMusic</h1>
+        <div class="search-box">
+            <span class="material-icons-round">search</span>
+            <input type="text" id="search" placeholder="搜尋歌曲、藝人、播放清單…" onkeypress="if(event.key==='Enter') search()">
+        </div>
     </div>
 
+    <!-- 側邊欄 -->
     <nav id="sidebar">
         <div class="logo"><h1>FocusMusic</h1></div>
         <div class="nav-item active" onclick="showSection('home')"><span class="material-icons-round">home</span>首頁</div>
@@ -82,16 +126,8 @@
         </div>
     </nav>
 
+    <!-- 主內容區 -->
     <main>
-        <div class="top-bar">
-            <div></div>
-            <div class="search-box">
-                <span class="material-icons-round">search</span>
-                <input type="text" id="search" placeholder="搜尋歌曲、藝人、播放清單…" onkeypress="if(event.key==='Enter') search()">
-            </div>
-            <div></div>
-        </div>
-
         <section id="home">
             <h1>為你推薦</h1>
             <div class="grid" id="top50"></div>
@@ -110,6 +146,7 @@
         </section>
     </main>
 
+    <!-- 播放器 -->
     <div id="player">
         <div class="player-left">
             <img id="now-thumb" src="" alt="">
@@ -142,14 +179,19 @@
     const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ';
     let player, tracks = [], idx = -1, loop = false;
     let folders = JSON.parse(localStorage.getItem('focusFolders')||'[]');
+    let currentPlaylist = []; // 關鍵：修復上一首下一首
 
-    function toggleSidebar(){document.getElementById('sidebar').classList.toggle('hidden');}
+    function toggleSidebar(){
+        document.getElementById('sidebar').classList.toggle('hidden');
+    }
+
     function showSection(s){
         document.querySelectorAll('section').forEach(el=>el.classList.add('hidden'));
         document.getElementById(s).classList.remove('hidden');
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         document.querySelector(`[onclick="showSection('${s}')"]`)?.classList.add('active');
         if(s==='home') {loadTop50(); renderUserPlaylists();}
+        if(s==='library') renderUserPlaylists();
     }
 
     async function search(){
@@ -157,20 +199,23 @@
         if(!q) return;
         showSection('results');
         const container = document.getElementById('search-results');
-        container.innerHTML = '<div style="text-align:center;padding:80px;color:#666;font-size:18px;">搜尋中…</div>';
+        container.innerHTML = '<div style="text-align:center;padding:80px;color:#666;">搜尋中…</div>';
+
         const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=30&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${API_KEY}`);
         const data = await res.json();
         container.innerHTML = '';
+        const results = [];
         data.items.forEach(item=>{
             if(item.id?.videoId){
                 const song = {id:item.id.videoId,title:item.snippet.title,thumb:item.snippet.thumbnails.medium?.url};
+                results.push(song);
                 const div = document.createElement('div');
                 div.className='card';
                 div.innerHTML = `
                     <img src="${song.thumb}">
                     <h3>${song.title}</h3>
                     <p>${item.snippet.channelTitle}</p>
-                    <div class="play-btn" onclick="playSong('${song.id}','${song.title.replace(/'/g,"\\'")}','${song.thumb}')">
+                    <div class="play-btn" onclick="playFromSearch(${results.length-1}, results)">
                         <span class="material-icons-round">play_arrow</span>
                     </div>
                     <div class="add-btn" onclick="addToPlaylistPrompt('${song.id}','${song.title.replace(/'/g,"\\'")}','${song.thumb}')">
@@ -180,12 +225,20 @@
                 container.appendChild(div);
             }
         });
+        window.currentSearchResults = results; // 暫存搜尋結果
+    }
+
+    // 修復：從搜尋結果播放
+    function playFromSearch(index, list){
+        tracks = list;
+        idx = index;
+        playCurrent();
     }
 
     async function loadTop50(){
         const container = document.getElementById('top50');
         container.innerHTML = '<div style="text-align:center;padding:60px;color:#666;">載入中…</div>';
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10®ionCode=TW&maxResults=20&key=${API_KEY}`);
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=20&key=${API_KEY}`);
         const data = await res.json();
         container.innerHTML = '';
         data.items.forEach(v=>{
@@ -203,74 +256,95 @@
         });
     }
 
-    function playSong(id,title,thumb){tracks=[{id,title,thumb}];idx=0;playCurrent();}
-    function playCurrent(){
-        const s=tracks[idx];
-        document.getElementById('current-title').textContent=s.title;
-        document.getElementById('now-thumb').src=s.thumb;
-        player.loadVideoById(s.id);
+    function playSong(id,title,thumb){
+        tracks = [{id,title,thumb}];
+        idx = 0;
+        playCurrent();
     }
-    function nextTrack(){idx=(idx+1)%tracks.length;playCurrent();}
-    function prevTrack(){idx=idx<=0?tracks.length-1:idx-1;playCurrent();}
-    function togglePlay(){player.getPlayerState()===1?player.pauseVideo():player.playVideo();}
-    function toggleLoop(){loop=!loop;document.getElementById('loopBtn').classList.toggle('active',loop);}
+
+    function playCurrent(){
+        if(tracks.length===0) return;
+        const s = tracks[idx];
+        document.getElementById('current-title').textContent = s.title;
+        document.getElementById('now-thumb').src = s.thumb || 'https://i.ytimg.com/vi/'+s.id+'/mqdefault.jpg';
+        player.loadVideoById(s.id);
+        document.querySelector('#playBtn span').textContent = 'pause';
+    }
+
+    function nextTrack(){
+        if(tracks.length<=1) return;
+        idx = (idx + 1) % tracks.length;
+        playCurrent();
+    }
+    function prevTrack(){
+        if(tracks.length<=1) return;
+        idx = idx <= 0 ? tracks.length - 1 : idx - 1;
+        playCurrent();
+    }
 
     function onYouTubeIframeAPIReady(){
-        player = new YT.Player('youtube-player',{playerVars:{playsinline:1,controls:0,rel:0},events:{
-            'onReady':()=>setInterval(updateProgress,500),
-            'onStateChange':e=>{
-                document.querySelector('#playBtn span').textContent=e.data===1?'pause':'play_arrow';
-                if(e.data===0) loop?playCurrent():nextTrack();
+        player = new YT.Player('youtube-player',{
+            playerVars:{playsinline:1,controls:0,rel:0},
+            events:{
+                'onReady':()=>setInterval(updateProgress,500),
+                'onStateChange':e=>{
+                    document.querySelector('#playBtn span').textContent = e.data===1?'pause':'play_arrow';
+                    if(e.data===0 && !loop && tracks.length>1) nextTrack();
+                }
             }
-        }});
+        });
         loadTop50();
         renderAll();
     }
 
+    // 播放清單系統
+    function createFolder(){
+        const name = prompt('播放清單名稱');
+        if(name){folders.push({name,songs:[]});saveAndRender();}
+    }
     function addToPlaylistPrompt(id,title,thumb){
-        if(folders.length===0){alert('請先建立一個播放清單');createFolder();return;}
-        const names = folders.map(f=>f.name).join(' / ');
-        const choice = prompt(`加入哪個播放清單？\n${names}\n\n或輸入新名稱建立`, folders[0].name);
+        if(folders.length===0){alert('請先建立播放清單');createFolder();return;}
+        const choice = prompt(`加入哪個播放清單？\n${folders.map(f=>f.name).join(' / ')}\n\n或輸入新名稱`, folders[0].name);
         if(!choice) return;
         let target = folders.find(f=>f.name===choice);
         if(!target){target={name:choice,songs:[]};folders.push(target);}
         target.songs.push({id,title,thumb});
+        saveAndRender();
+    }
+    function saveAndRender(){
         localStorage.setItem('focusFolders',JSON.stringify(folders));
         renderAll();
     }
-
-    function createFolder(){
-        const name=prompt('播放清單名稱');
-        if(name){folders.push({name,songs:[]});localStorage.setItem('focusFolders',JSON.stringify(folders));renderAll();}
-    }
-
     function renderAll(){
         renderFolders();
         renderUserPlaylists();
     }
     function renderFolders(){
-        const list=document.getElementById('folder-list-sidebar');
-        list.innerHTML=folders.map(f=>`
-            <div class="nav-item" onclick="alert('即將開啟播放清單：${f.name}')">
+        document.getElementById('folder-list-sidebar').innerHTML = folders.map(f=>`
+            <div class="nav-item" onclick="openPlaylist('${f.name}')">
                 <span class="material-icons-round">queue_music</span>${f.name} <small>(${f.songs.length})</small>
             </div>
         `).join('');
     }
     function renderUserPlaylists(){
-        const container=document.getElementById('user-playlists');
-        container.innerHTML='';
-        folders.forEach(f=>{
-            const div=document.createElement('div');
-            div.className='card';
-            div.innerHTML=`
-                <img src="${f.songs[0]?.thumb||'https://i.imgur.com/8z6Q7vJ.png'}">
-                <h3>${f.name}</h3>
-                <p>${f.songs.length} 首歌曲</p>
-                <div class="play-btn" onclick="playPlaylist('${f.name}')">
-                    <span class="material-icons-round">play_arrow</span>
-                </div>
-            `;
-            container.appendChild(div);
+        const containers = ['user-playlists', 'user-playlists-lib'];
+        containers.forEach(id=>{
+            const container = document.getElementById(id);
+            if(!container) return;
+            container.innerHTML = '';
+            folders.forEach(f=>{
+                const div = document.createElement('div');
+                div.className='card';
+                div.innerHTML = `
+                    <img src="${f.songs[0]?.thumb||'https://i.imgur.com/8z6Q7vJ.png'}">
+                    <h3>${f.name}</h3>
+                    <p>${f.songs.length} 首</p>
+                    <div class="play-btn" onclick="playPlaylist('${f.name}')">
+                        <span class="material-icons-round">play_arrow</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
         });
     }
     function playPlaylist(name){
@@ -280,6 +354,9 @@
             idx = 0;
             playCurrent();
         }
+    }
+    function openPlaylist(name){
+        alert('即將開啟完整播放清單頁面：'+name+'（下個版本上線）');
     }
 
     function updateProgress(){
@@ -295,6 +372,8 @@
         const pos=(e.clientX-rect.left)/rect.width;
         player.seekTo(pos*player.getDuration());
     }
+    function toggleLoop(){loop=!loop;document.getElementById('loopBtn').classList.toggle('active',loop);}
+    function togglePlay(){player.getPlayerState()===1?player.pauseVideo():player.playVideo();}
 
     renderAll();
     if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
