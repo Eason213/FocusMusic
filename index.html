@@ -11,8 +11,7 @@ body{background:#000;color:#fff;font-family:system-ui;height:100vh;display:flex;
 header{height:70px;background:#000;display:flex;align-items:center;padding:0 12px;gap:10px;z-index:10;}
 header h1{color:#1ed760;font-size:26px;font-weight:900;}
 #search{flex:1;background:#222;color:#fff;padding:12px 16px;border-radius:30px;font-size:16px;outline:none;border:none;min-width:0;}
-.header-btn{background:#333;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
-#filter{background:#1ed760;color:#000;}
+#refresh{background:#333;color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;cursor:pointer;}
 main{flex:1;overflow-y:auto;padding:20px 16px 110px;}
 h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px;}
@@ -26,10 +25,11 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 #player{position:fixed;bottom:0;left:0;right:0;height:90px;background:#000;border-top:1px solid #333;
     display:flex;align-items:center;padding:0 20px;z-index:999;gap:16px;}
 #player img{width:56px;height:56px;border-radius:8px;}
-#nowTitle{font-weight:600;font-size:16px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#nowTitle{flex:1;font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .controls{display:flex;align-items:center;gap:20px;}
 .controls button{background:transparent;color:#aaa;width:50px;height:50px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:32px;}
 #playBtn{background:#1ed760;color:#fff;width:64px;height:64px;border-radius:50%;font-size:38px!important;box-shadow:0 8px 25px rgba(30,215,96,0.5);}
+#loopBtn{color:#1ed760;font-size:28px!important;}
 .progress{position:absolute;bottom:0;left:0;right:0;height:4px;background:#333;cursor:pointer;}
 #bar{height:100%;width:0%;background:#1ed760;transition:width .1s linear;}
 .time{position:absolute;bottom:10px;left:20px;right:20px;display:flex;justify-content:space-between;color:#aaa;font-size:12px;z-index:10;}
@@ -42,8 +42,7 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 <header>
     <h1>FocusMusic</h1>
     <input type="text" id="search" placeholder="搜尋歌曲…" onkeydown="if(event.key==='Enter')doSearch()">
-    <div class="header-btn" onclick="loadRecommend()">刷新</div>
-    <div class="header-btn" id="filter" onclick="toggleMode()">歌曲</div>
+    <div id="refresh" onclick="loadRecommend()">刷新</div>
 </header>
 
 <main>
@@ -54,12 +53,14 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 <div id="shuffle" onclick="shufflePlay()">隨機播放全部</div>
 
 <div id="player">
-    <img id="thumb" src="" alt="">
+    <img id="thumb" src="">
     <div id="nowTitle">準備播放</div>
     <div class="controls">
+        <button onclick="toggleLoop()" id="loopBtn"><span class="material-icons-outlined">repeat</span></button>
         <button onclick="prev()"><span class="material-icons-outlined">skip_previous</span></button>
         <button id="playBtn" onclick="togglePlay()"><span class="material-icons-outlined">play_arrow</span></button>
         <button onclick="next()"><span class="material-icons-outlined">skip_next</span></button>
+        <button onclick="shufflePlay()"><span class="material-icons-outlined">shuffle</span></button>
     </div>
     <div class="progress" onclick="seek(event)"><div id="bar"></div></div>
     <div class="time">
@@ -72,23 +73,33 @@ h1{font-size:30px;font-weight:900;margin-bottom:20px;}
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // 換成你的 Key
-let player, songs = [], current = -1, originalSongs = [];
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 記得換成你的 Key
+let player, songs = [], current = -1;
+let loopMode = 0; // 0=列表循環, 1=單曲循環, 2=隨機循環
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('yt', {
         playerVars: { autoplay:1, controls:0, playsinline:1, rel:0 },
         events: {
             'onReady': () => { setInterval(updateTime, 500); loadRecommend(); },
-            'onStateChange': e => {
-                document.querySelector('#playBtn span').textContent = e.data===1 ? 'pause' : 'play_arrow';
-            }
+            'onStateChange': onPlayerStateChange
         }
     });
 }
 
+function onPlayerStateChange(e) {
+    document.querySelector('#playBtn span').textContent = e.data===1 ? 'pause' : 'play_arrow';
+
+    // 歌曲結束時自動下一首
+    if(e.data === 0) {
+        if(loopMode === 1) play(current);           // 單曲循環
+        else if(loopMode === 2) shufflePlay();      // 隨機循環
+        else next();                                 // 列表循環
+    }
+}
+
 function play(i) {
-    if(!songs[i]) return;
+    if(songs.length === 0) return;
     current = i;
     const s = songs[i];
     document.getElementById('nowTitle').textContent = s.title;
@@ -101,44 +112,50 @@ function next() { play(current >= songs.length-1 ? 0 : current+1); }
 function prev() { play(current <= 0 ? songs.length-1 : current-1); }
 function seek(e) {
     const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    player.seekTo(pos * player.getDuration());
+    player.seekTo((e.clientX-rect.left)/rect.width * player.getDuration());
 }
 function updateTime() {
-    if(!player || !player.getDuration) return;
+    if(!player?.getDuration) return;
     const cur = player.getCurrentTime() || 0;
     const dur = player.getDuration() || 0;
     document.getElementById('bar').style.width = (cur/dur*100)+'%';
     document.getElementById('currentTime').textContent = fmt(cur);
     document.getElementById('totalTime').textContent = fmt(dur);
 }
-function fmt(t){ const m=Math.floor(t/60); const s=Math.floor(t%60); return m+':'+(s<10?'0':'')+s; }
+function fmt(t){ const m=Math.floor(t/60); const s=Math.floor(t%60); return m+':'+(s<10?'0:'')+s; }
 
 function shufflePlay() {
     if(songs.length < 2) return play(0);
     const arr = [...songs];
     for(let i=arr.length-1;i>0;i--){
-        const j = Math.floor(Math.random()*(i+1));
+        const j=Math.floor(Math.random()*(i+1));
         [arr[i],arr[j]] = [arr[j],arr[i]];
     }
     songs = arr;
     play(0);
 }
 
+function toggleLoop() {
+    loopMode = (loopMode + 1) % 3;
+    const icons = ['repeat','repeat_one','shuffle'];
+    const colors = ['#aaa','#1ed760','#1ed760'];
+    document.querySelector('#loopBtn span').textContent = icons[loopMode];
+    document.querySelector('#loopBtn').style.color = colors[loopMode];
+}
+
 function render() {
     const g = document.getElementById('grid');
     g.innerHTML = '';
-    songs.forEach((s,i) => {
+    songs.forEach((s,i)=>{
         const d = document.createElement('div');
-        d.className = 'card';
-        d.innerHTML = `
+        d.className='card';
+        d.innerHTML=`
             <img src="${s.thumb}" onerror="this.src='https://via.placeholder.com/200/222/888?text=No+Image'">
             <h3>${s.title.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</h3>
             <div class="play" onclick="event.stopPropagation();play(${i})">
                 <span class="material-icons-outlined">play_arrow</span>
-            </div>
-        `;
-        d.onclick = () => play(i);   // 這行最穩，手機一定觸發
+            </div>`;
+        d.onclick = () => play(i);
         g.appendChild(d);
     });
 }
@@ -147,9 +164,8 @@ async function loadRecommend() {
     document.getElementById('pageTitle').textContent = '為你推薦';
     try {
         const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
-        if(!r.ok) throw '';
         const d = await r.json();
-        songs = originalSongs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
+        songs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
         render();
     } catch(e) {
         document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#f66;">載入失敗<br>請檢查 API Key</div>';
@@ -163,24 +179,9 @@ function doSearch() {
     fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`)
         .then(r=>r.json())
         .then(d=>{
-            songs = originalSongs = d.items.filter(x=>x.id?.videoId).map(x=>({
-                id:x.id.videoId,
-                title:x.snippet.title,
-                thumb:x.snippet.thumbnails.medium?.url||''
-            }));
+            songs = d.items.filter(x=>x.id?.videoId).map(x=>({id:x.id.videoId,title:x.snippet.title,thumb:x.snippet.thumbnails.medium?.url||''}));
             render();
         });
-}
-
-function toggleMode() {
-    const isSong = document.getElementById('filter').textContent === '歌曲';
-    document.getElementById('filter').textContent = isSong ? '播放清單' : '歌曲';
-    if(isSong){
-        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:100px;color:#888;">播放清單功能開發中…</div>';
-    }else{
-        songs = originalSongs;
-        render();
-    }
 }
 
 loadRecommend();
