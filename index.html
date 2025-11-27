@@ -1,356 +1,262 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FocusMusic</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#000000">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <style>
-        :root{--green:#1ed760;--black:#121212;--gray:#282828;}
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body,html{background:var(--black);color:#fff;font-family:system-ui,sans-serif;overflow:hidden;height:100vh;}
-        #app{position:relative;height:100vh;}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FocusMusic</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+:root{--g:#1ed760;--b:#121212;--g2:#282828;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body,html{background:var(--b);color:#fff;font-family:system-ui;overflow:hidden;height:100vh;}
 
-        /* 頂部橫條 - 絕對不會擋字 */
-        .top-bar{
-            height:70px;background:rgba(0,0,0,0.92);backdrop-filter:blur(20px);
-            position:fixed;top:0;left:0;right:0;z-index:999;
-            display:flex;align-items:center;padding:0 20px;
-        }
-        .top-bar h1{color:var(--green);font-size:32px;font-weight:900;position:absolute;left:72px;}
-        #toggle-sidebar{
-            width:48px;height:48px;background:rgba(255,255,255,0.1);border-radius:50%;
-            display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;
-        }
+.top-bar{height:70px;background:rgba(0,0,0,0.92);backdrop-filter:blur(20px);position:fixed;top:0;left:0;right:0;z-index:999;
+    display:flex;align-items:center;padding:0 16px;}
+.top-bar h1{color:var(--g);font-size:32px;font-weight:900;margin-left:60px;}
+#menuBtn{width:48px;height:48px;background:rgba(255,255,255,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 
-        /* 2.0 完全不擋字 + 手機完美 */
-        @media (max-width:480px){
-            .top-bar h1{font-size:26px;left:64px;}
-        }
+#sidebar{width:280px;background:var(--b);position:fixed;left:0;top:70px;bottom:0;overflow-y:auto;padding:20px 0;
+    transition:transform .3s;transform:translateX(0);}
+#sidebar.hidden{transform:translateX(-100%);}
 
-        nav{
-            width:280px;background:var(--black);position:fixed;left:0;top:70px;bottom:0;overflow-y:auto;
-            padding:20px 0;z-index:998;transition:transform .35s ease;
-            transform:translateX(0);
-        }
-        nav.hidden{transform:translateX(-100%);}
-        .nav-item{
-            padding:14px 28px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;
-            display:flex;align-items:center;gap:16px;
-        }
-        .nav-item:hover{background:rgba(255,255,255,0.08);}
-        .nav-item.active{background:rgba(255,255,255,0.12);color:var(--green);}
+main{margin-top:70px;padding:20px 16px 110px;overflow-y:auto;height:calc(100vh-70px);}
 
-        main{
-            margin-top:70px;padding-bottom:100px;overflow-y:auto;height:calc(100vh - 70px);
-            padding:20px 16px;
-        }
-        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:20px;}
-        .card{
-            background:var(--gray);border-radius:12px;overflow:hidden;position:relative;cursor:pointer;
-            transition:transform .3s,background .3s;
-        }
-        .card:hover{transform:scale(1.05);background:#333;}
-        .card img{width:100%;aspect-ratio:1;object-fit:cover;}
-        .card-info{padding:12px;}
-        .card h3{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .play-btn{
-            position:absolute;bottom:70px;right:16px;width:56px;height:56px;background:var(--green);
-            color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;
-            opacity:0;transition:.3s;box-shadow:0 8px 25px rgba(0,0,0,0.6);
-        }
-        .card:hover .play-btn{opacity:1;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:18px;}
+.card{background:var(--g2);border-radius:12px;overflow:hidden;position:relative;cursor:pointer;transition:.25s;}
+.card:hover{transform:scale(1.06);background:#333;}
+.card img{width:100%;aspect-ratio:1;object-fit:cover;}
+.card div{padding:12px;}
+.card h3{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.playbtn{position:absolute;right:12px;bottom:68px;width:52px;height:52px;background:var(--g);color:#000;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;opacity:0;transition:.3s;box-shadow:0 8px 20px rgba(0,0,0,0.6);}
+.card:hover .playbtn{opacity:1;}
 
-        /* 播放器 */
-        #player{
-            position:fixed;bottom:0;left:0;right:0;height:90px;background:var(--black);
-            border-top:1px solid #333;display:flex;align-items:center;padding:0 16px;z-index:999;
-        }
-        .player-left{flex:1;display:flex;align-items:center;gap:12px;}
-        .player-left img{width:56px;height:56px;border-radius:8px;}
-        .player-center{flex:1.5;display:flex;flex-direction:column;align-items:center;gap:8px;}
-        .player-controls{display:flex;align-items:center;gap:28px;}
-        .player-controls button{background:none;border:none;color:#b3b3b3;cursor:pointer;font-size:28px;}
-        #playBtn{background:var(--green);color:#000;width:48px;height:48px;border-radius:50%;font-size:32px!important;}
-        #loopBtn.active{color:var(--green);}
-        #loopBtn.single::after{content:"1";font-size:12px;position:absolute;margin-left:4px;background:#000;color:var(--green);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;}
-        .progress-bar{height:4px;background:#404040;border-radius:2px;overflow:hidden;width:100%;cursor:pointer;}
-        .progress-fill{height:100%;width:0%;background:#fff;}
+#player{position:fixed;bottom:0;left:0;right:0;height:90px;background:var(--b);border-top:1px solid #333;
+    display:flex;align-items:center;padding:0 16px;z-index:999;}
+#player img{width:56px;height:56px;border-radius:8px;}
+#current-title{font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.controls{display:flex;align-items:center;gap:30px;}
+.controls button{background:none;border:none;color:#bbb;cursor:pointer;font-size:28px;}
+#playBtn{background:var(--g);color:#000;width:48px;height:48px;border-radius:50%;font-size:32px!important;}
+#loopBtn.active{color:var(--g);}
+#loopBtn.single::after{content:"1";font-size:11px;background:#000;color:var(--g);border-radius:50%;width:16px;height:16px;
+    position:absolute;margin-top:-24px;margin-left:4px;display:flex;align-items:center;justify-content:center;}
+.progress{height:4px;background:#404040;border-radius:2px;overflow:hidden;width:100%;cursor:pointer;margin-top:8px;}
+.progress div{height:100%;width:0%;background:#fff;transition:width .1s;}
 
-        /* 播放清單彈窗 */
-        #playlist-modal{
-            position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;
-            display:none;align-items:center;justify-content:center;padding:20px;
-        }
-        .modal-content{
-            background:#1a1a1a;width:100%;max-width:500px;max-height:90vh;border-radius:16px;
-            overflow:hidden;
-        }
-        .modal-header{
-            padding:20px;display:flex;justify-content:space-between;align-items:center;
-            border-bottom:1px solid #333;
-        }
-        .modal-header h2{font-size:24px;font-weight:800;}
-        .song-list{max-height:60vh;overflow-y:auto;}
-        .song-item{
-            padding:16px 20px;display:flex;align-items:center;gap:16px;
-            border-bottom:1px solid #333;cursor:pointer;
-        }
-        .song-item:hover{background:#282828;}
-        .song-item img{width:50px;height:50px;border-radius:8px;}
-        .delete-pl-btn{color:#f55;margin-left:auto;}
-    </style>
+#searchInput{width:100%;background:#fff;color:#000;padding:12px 20px;border-radius:30px;font-size:16px;outline:none;}
+
+#modal{position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:9999;display:none;flex-direction:column;}
+.modal-head{padding:20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;}
+.modal-body{flex:1;overflow-y:auto;padding:0 20px;}
+.song{padding:16px 0;display:flex;align-items:center;gap:16px;border-bottom:1px solid #333;cursor:pointer;}
+.song img{width:50px;height:50px;border-radius:8px;}
+.modal-foot{padding:20px;text-align:center;}
+.modal-foot button{background:none;border:1px solid #666;color:#fff;padding:10px 20px;border-radius:30px;margin:0 8px;}
+.modal-foot button:last-child{background:#e00;border:none;}
+</style>
 </head>
 <body>
-<div id="app">
-    <div class="top-bar">
-        <div id="toggle-sidebar" onclick="document.getElementById('sidebar').classList.toggle('hidden')">
-            <span class="material-icons-round">menu</span>
-        </div>
-        <h1>FocusMusic</h1>
+
+<div class="top-bar">
+    <div id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('hidden')">
+        <span class="material-icons-round">menu</span>
     </div>
+    <h1>FocusMusic</h1>
+</div>
 
-    <nav id="sidebar">
-        <div class="nav-item active" onclick="showSection('home')"><span class="material-icons-round">home</span> 首頁</div>
-        <div class="nav-item" onclick="document.getElementById('search').focus()"><span class="material-icons-round">search</span> 搜尋</div>
-        <div class="nav-item" onclick="showSection('library')"><span class="material-icons-round">library_music</span> 你的音樂庫</div>
-        <div style="margin:30px 0 10px 28px;font-size:13px;color:#888;">播放清單</div>
-        <div id="folder-list"></div>
-        <button onclick="createFolder()" style="margin:20px 28px;padding:14px;background:rgba(255,255,255,0.1);border:none;border-radius:8px;color:#fff;font-weight:700;width:calc(100% - 56px);">
-            + 建立播放清單
-        </button>
-    </nav>
+<div id="sidebar">
+    <div class="nav-item active" onclick="go('home')"><span class="material-icons-round">home</span> 首頁</div>
+    <div class="nav-item" onclick="document.getElementById('searchInput').focus()"><span class="material-icons-round">search</span> 搜尋</div>
+    <div class="nav-item" onclick="go('library')"><span class="material-icons-round">library_music</span> 你的音樂庫</div>
+    <div style="margin:30px 0 10px 28px;color:#888;font-size:13px;">播放清單</div>
+    <div id="plist"></div>
+    <button onclick="newPl()" style="margin:20px 28px;padding:14px;background:rgba(255,255,255,0.1);border:none;border-radius:8px;color:#fff;width:calc(100%-56px);">+ 建立播放清單</button>
+</div>
 
-    <main>
-        <section id="home">
-            <div style="display:flex;align-items:center;margin-bottom:20px;">
-                <h1>為你推薦</h1>
-                <span style="color:var(--green);margin-left:12px;cursor:pointer;font-size:14px;" onclick="loadTop50(true)">↻ 更新推薦</span>
-            </div>
-            <div class="grid" id="top50"></div>
-            <h1 style="margin:50px 0 20px;">你的播放清單</h1>
-            <div class="grid" id="my-playlists"></div>
-        </section>
-
-        <section id="results" class="hidden">
-            <h1>搜尋結果</h1>
-            <div class="grid" id="search-results"></div>
-        </section>
-
-        <section id="library" class="hidden">
-            <h1>所有播放清單</h1>
-            <div class="grid" id="library-playlists"></div>
-        </section>
-    </main>
-
-    <div id="player">
-        <div class="player-left">
-            <img id="now-thumb" src="">
-            <div>
-                <div id="current-title" style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">準備播放</div>
-            </div>
+<main>
+    <section id="home">
+        <div style="display:flex;align-items:center;margin-bottom:16px;">
+            <h1>為你推薦</h1>
+            <span style="color:var(--g);margin-left:12px;cursor:pointer;" onclick="loadRec()">↻ 更新</span>
         </div>
-        <div class="player-center">
-            <div class="player-controls">
-                <button onclick="toggleLoopMode()" id="loopBtn"><span class="material-icons-round">repeat</span></button>
-                <button onclick="prevTrack()"><span class="material-icons-round">skip_previous</span></button>
-                <button id="playBtn" onclick="togglePlay()"><span class="material-icons-round">play_arrow</span></button>
-                <button onclick="nextTrack()"><span class="material-icons-round">skip_next</span></button>
-            </div>
-            <div class="progress-bar" onclick="seek(event)"><div class="progress-fill" id="progress"></div></div>
-        </div>
+        <input type="text" id="searchInput" placeholder="搜尋歌曲…" onkeypress="if(event.key==='Enter') searchNow()">
+        <div class="grid" id="rec"></div>
+        
+        <h1 style="margin:50px 0 20px;">你的播放清單</h1>
+        <div class="grid" id="mypl"></div>
+    </section>
+
+    <section id="results" class="hidden">
+        <h1>搜尋結果</h1>
+        <div class="grid" id="reslist"></div>
+    </section>
+
+    <section id="library" class="hidden">
+        <h1>所有播放清單</h1>
+        <div class="grid" id="liblist"></div>
+    </section>
+</main>
+
+<div id="player">
+    <div style="display:flex;align-items:center;gap:12px;flex:1;">
+        <img id="now-thumb" src="">
+        <div id="current-title">準備播放</div>
     </div>
+    <div class="controls">
+        <button id="loopBtn" onclick="loopMode=(loopMode+1)%3;updateLoopBtn()"><span class="material-icons-round">repeat</span></button>
+        <button onclick="prev()"><span class="material-icons-round">skip_previous</span></button>
+        <button id="playBtn" onclick="playPause()"><span class="material-icons-round">play_arrow</span></button>
+        <button onclick="next()"><span class="material-icons-round">skip_next</span></button>
+    </div>
+    <div class="progress" onclick="seek(event)"><div id="bar"></div></div>
+</div>
 
-    <!-- 播放清單彈窗 -->
-    <div id="playlist-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title"></h2>
-                <span class="material-icons-round" style="cursor:pointer;" onclick="closeModal()">close</span>
-            </div>
-            <div class="song-list" id="modal-songs"></div>
-            <div style="padding:20px;text-align:center;">
-                <button onclick="renamePlaylist(currentPlaylistIndex)" style="background:none;border:1px solid #666;padding:10px 20px;border-radius:50px;margin:0 8px;">重新命名</button>
-                <button onclick="deletePlaylist(currentPlaylistIndex)" style="background:#f55;color:#fff;border:none;padding:10px 20px;border-radius:50px;margin:0 8px;">刪除播放清單</button>
-            </div>
-        </div>
+<!-- 播放清單彈窗 -->
+<div id="modal">
+    <div class="modal-head">
+        <h2 id="plname"></h2>
+        <span class="material-icons-round" onclick="document.getElementById('modal').style.display='none'" style="cursor:pointer;">close</span>
+    </div>
+    <div class="modal-body" id="songlist"></div>
+    <div class="modal-foot">
+        <button onclick="renamePl()">重新命名</button>
+        <button onclick="deletePl()">刪除播放清單</button>
     </div>
 </div>
 
-<div id="youtube-player" style="display:none;"></div>
+<div id="yt" style="display:none;"></div>
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-    const API_KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ';
-    let player, tracks = [], idx = -1, loopMode = 0;
-    let folders = JSON.parse(localStorage.getItem('focusFolders_v2')||'[]');
-    let currentPlaylistIndex = -1;
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 這裡換成你的
+let player, list=[], pos=-1, loopMode=0, folders=JSON.parse(localStorage.getItem('fm3')||'[]'), curPl=-1;
 
-    // 全域播放函式（解決所有切歌問題）
-    window.playThisList = function(list, startIdx = 0){
-        tracks = list.map(s=>({id:s.id,title:s.title,thumb:s.thumb}));
-        idx = startIdx;
-        playCurrent();
-    }
-
-    function playCurrent(){
-        if(!tracks[idx]) return;
-        const s = tracks[idx];
-        document.getElementById('current-title').textContent = s.title;
-        document.getElementById('now-thumb').src = s.thumb || `https://i.ytimg.com/vi/${s.id}/mqdefault.jpg`;
-        player.loadVideoById(s.id);
-    }
-    function nextTrack(){ if(tracks.length>1) idx = (idx+1) % tracks.length; playCurrent(); }
-    function prevTrack(){ if(tracks.length>1) idx = idx<=0 ? tracks.length-1 : idx-1; playCurrent(); }
-    function togglePlay(){ player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
-
-    function toggleLoopMode(){
-        loopMode = (loopMode + 1) % 3;
-        const btn = document.getElementById('loopBtn');
-        btn.className = '';
-        btn.innerHTML = '<span class="material-icons-round">repeat</span>';
-        if(loopMode===1){ btn.classList.add('active'); }
-        if(loopMode===2){ btn.classList.add('active','single'); btn.innerHTML = '<span class="material-icons-round">repeat_one</span>'; }
-    }
-
-    function onYouTubeIframeAPIReady(){
-        player = new YT.Player('youtube-player',{
-            playerVars:{playsinline:1,controls:0},
-            events:{
-                'onReady':()=>setInterval(()=>{document.getElementById('progress').style.width=(player.getCurrentTime()/player.getDuration()*100)+'%';},500),
-                'onStateChange':e=>{
-                    document.querySelector('#playBtn span').textContent = e.data===1?'pause':'play_arrow';
-                    if(e.data===0){
-                        if(loopMode===2) playCurrent();
-                        else if(loopMode===1 || idx<tracks.length-1) nextTrack();
-                    }
-                }
+// ---------- 播放核心 ----------
+function onYouTubeIframeAPIReady(){
+    player = new YT.Player('yt',{playerVars:{playsinline:1,controls:0},events:{
+        'onReady':()=>setInterval(()=>document.getElementById('bar').style.width=(player.getCurrentTime()/player.getDuration()*100)+'%',500),
+        'onStateChange':e=>{
+            document.querySelector('#playBtn span').textContent = e.data===1?'pause':'play_arrow';
+            if(e.data===0){
+                if(loopMode===2) playNow();
+                else if(loopMode===1 || pos<list.length-1) next();
             }
-        });
-        loadTop50();
-        renderAll();
-    }
-
-    async function loadTop50(){
-        const container = document.getElementById('top50');
-        container.innerHTML = '<div style="text-align:center;padding:80px;color:#666;">載入中…</div>';
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=20&key=${API_KEY}`);
-        const data = await res.json();
-        container.innerHTML = '';
-        data.items.forEach(v=>{
-            const song = {id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url};
-            const div = document.createElement('div');
-            div.className='card';
-            div.innerHTML = `<img src="${song.thumb}">
-                <div class="card-info"><h3>${song.title.substr(0,35)}…</h3></div>
-                <div class="play-btn" onclick="playThisList([${JSON.stringify(song)}])">
-                    <span class="material-icons-round">play_arrow</span>
-                </div>`;
-            container.appendChild(div);
-        });
-    }
-
-    async function search(){
-        const q = document.getElementById('search')?.value.trim() || '';
-        if(!q) return;
-        showSection('results');
-        const container = document.getElementById('search-results');
-        container.innerHTML = '<div style="text-align:center;padding:100px;color:#666;">搜尋中…</div>';
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=30&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${API_KEY}`);
-        const data = await res.json();
-        container.innerHTML = '';
-        const results = [];
-        data.items.forEach(item=>{
-            if(item.id?.videoId){
-                const song = {id:item.id.videoId,title:item.snippet.title,thumb:item.snippet.thumbnails.medium?.url};
-                results.push(song);
-                const div = document.createElement('div');
-                div.className='card';
-                div.innerHTML = `<img src="${song.thumb}">
-                    <div class="card-info"><h3>${song.title}</h3></div>
-                    <div class="play-btn" onclick="playThisList(results, ${results.length-1})">
-                        <span class="material-icons-round">play_arrow</span>
-                    </div>`;
-                container.appendChild(div);
-            }
-        });
-    }
-
-    // 播放清單完整功能
-    function createFolder(){
-        const name = prompt('播放清單名稱');
-        if(name){ folders.push({name,songs:[]}); save(); }
-    }
-    function openPlaylist(i){
-        currentPlaylistIndex = i;
-        const pl = folders[i];
-        document.getElementById('modal-title').textContent = pl.name;
-        const list = document.getElementById('modal-songs');
-        list.innerHTML = '';
-        pl.songs.forEach((s,j)=>{
-            const div = document.createElement('div');
-            div.className='song-item';
-            div.onclick = ()=>playThisList(pl.songs, j);
-            div.innerHTML = `<img src="${s.thumb}">
-                <div style="flex:1;"><div style="font-weight:600;">${s.title}</div></div>
-                <span class="material-icons-round delete-pl-btn" onclick="event.stopPropagation();removeSongFromPlaylist(i,j)">delete</span>`;
-            list.appendChild(div);
-        });
-        document.getElementById('playlist-modal').style.display = 'flex';
-    }
-    function closeModal(){ document.getElementById('playlist-modal').style.display = 'none'; }
-    function renamePlaylist(i){
-        const newName = prompt('新名稱', folders[i].name);
-        if(newName){ folders[i].name = newName; save(); }
-    }
-    function deletePlaylist(i){
-        if(confirm('確定刪除「'+folders[i].name+'」？')){
-            folders.splice(i,1);
-            save();
-            closeModal();
         }
-    }
-    function removeSongFromPlaylist(pi, si){
-        folders[pi].songs.splice(si,1);
-        save();
-        openPlaylist(pi);
-    }
-    function save(){ localStorage.setItem('focusFolders_v2',JSON.stringify(folders)); renderAll(); }
-    function renderAll(){
-        const containers = ['folder-list','my-playlists','library-playlists'];
-        containers.forEach(id=>{
-            const el = document.getElementById(id);
-            if(el) el.innerHTML = folders.map((f,i)=>`
-                <div class="nav-item" onclick="openPlaylist(${i})">
-                    <span class="material-icons-round">queue_music</span>
-                    ${f.name} <small style="margin-left:8px;color:#888;">${f.songs.length}首</small>
-                </div>`).join('');
-        });
-        ['my-playlists','library-playlists'].forEach(id=>{
-            const el = document.getElementById(id);
-            if(el) el.innerHTML = folders.map((f,i)=>`
-                <div class="card" onclick="openPlaylist(${i})">
-                    <img src="${f.songs[0]?.thumb||'https://i.imgur.com/8z6Q7vJ.png'}">
-                    <div class="card-info"><h3>${f.name}</h3><p>${f.songs.length}首</p></div>
-                </div>`).join('');
-        });
-    }
+    }});
+    loadRec();
+    draw();
+}
 
-    function showSection(s){
-        document.querySelectorAll('section').forEach(el=>el.classList.add('hidden'));
-        document.getElementById(s).classList.remove('hidden');
-        if(s==='home') loadTop50();
-    }
+function playThis(arr, start=0){
+    list = arr;
+    pos = start;
+    playNow();
+}
+function playNow(){
+    if(pos<0 || !list[pos]) return;
+    const s = list[pos];
+    document.getElementById('current-title').textContent = s.title;
+    document.getElementById('now-thumb').src = s.thumb||'';
+    player.loadVideoById(s.id);
+}
+function next(){ if(list.length>1) pos=(pos+1)%list.length; playNow(); }
+function prev(){ if(list.length>1) pos=pos<=0?list.length-1:pos-1; playNow(); }
+function playPause(){ player.getPlayerState()===1?player.pauseVideo():player.playVideo(); }
+function updateLoopBtn(){
+    const b=document.getElementById('loopBtn');
+    b.className=''; b.innerHTML='<span class="material-icons-round">repeat</span>';
+    if(loopMode===1) b.classList.add('active');
+    if(loopMode===2) {b.classList.add('active','single'); b.innerHTML='<span class="material-icons-round">repeat_one</span>';}
+}
+function seek(e){
+    const rect=e.currentTarget.getBoundingClientRect();
+    player.seekTo((e.clientX-rect.left)/rect.width * player.getDuration());
+}
 
-    // 搜尋框
-    document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.id==='search') search(); });
+// ---------- 推薦 ----------
+async function loadRec(){
+    const box=document.getElementById('rec'); box.innerHTML='載入中…';
+    const r=await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=30&key=${KEY}`);
+    const d=await r.json();
+    box.innerHTML='';
+    d.items.forEach(v=>{
+        const s={id:v.id, title:v.snippet.title, thumb:v.snippet.thumbnails.medium.url};
+        box.innerHTML+=`<div class="card" onclick="playThis([${JSON.stringify(s)}])">
+            <img src="${s.thumb}"><div><h3>${s.title.substr(0,35)}…</h3></div>
+            <div class="playbtn"><span class="material-icons-round">play_arrow</span></div>
+        </div>`;
+    });
+}
 
-    renderAll();
-    if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+// ---------- 搜尋 ----------
+async function searchNow(){
+    const q=document.getElementById('searchInput').value.trim();
+    if(!q) return;
+    go('results');
+    const box=document.getElementById('reslist'); box.innerHTML='搜尋中…';
+    const r=await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=30&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
+    const d=await r.json();
+    box.innerHTML=''; const arr=[];
+    d.items.forEach(it=>{
+        if(!it.id?.videoId) return;
+        const s={id:it.id.videoId, title:it.snippet.title, thumb:it.snippet.thumbnails.medium?.url};
+        arr.push(s);
+        box.innerHTML+=`<div class="card" onclick="playThis(arr, ${arr.length-1})">
+            <img src="${s.thumb}"><div><h3>${s.title}</h3></div>
+            <div class="playbtn"><span class="material-icons-round">play_arrow</span></div>
+        </div>`;
+    });
+}
+
+// ---------- 播放清單 ----------
+function newPl(){
+    const n=prompt('播放清單名稱'); if(n){folders.push({name:n,songs:[]});save();}
+}
+function openPl(i){
+    curPl=i;
+    document.getElementById('plname').textContent=folders[i].name;
+    const box=document.getElementById('songlist'); box.innerHTML='';
+    folders[i].songs.forEach((s,j)=>{
+        box.innerHTML+=`<div class="song" onclick="playThis(folders[${i}].songs, ${j})">
+            <img src="${s.thumb}"><div style="flex:1;"><div style="font-weight:600;">${s.title}</div></div>
+            <span class="material-icons-round" onclick="event.stopPropagation();delSong(${i},${j})" style="color:#f66;">delete</span>
+        </div>`;
+    });
+    document.getElementById('modal').style.display='flex';
+}
+function delSong(pi,si){folders[pi].songs.splice(si,1);save();openPl(pi);}
+function renamePl(){const n=prompt('新名稱',folders[curPl].name);if(n){folders[curPl].name=n;save();}}
+function deletePl(){if(confirm('確定刪除？')){folders.splice(curPl,1);save();document.getElementById('modal').style.display='none';}}
+function save(){localStorage.setItem('fm3',JSON.stringify(folders));draw();}
+function draw(){
+    ['plist','mypl','liblist'].forEach(id=>{
+        const e=document.getElementById(id);
+        if(!e) return;
+        e.innerHTML=folders.map((f,i)=>`
+            <div class="nav-item" onclick="openPl(${i})">
+                <span class="material-icons-round">queue_music</span> ${f.name} <small>(${f.songs.length})</small>
+            </div>`).join('');
+    });
+    document.getElementById('mypl').innerHTML=folders.map((f,i)=>`
+        <div class="card" onclick="openPl(${i})">
+            <img src="${f.songs[0]?.thumb||''}"><div><h3>${f.name}</h3><p>${f.songs.length}首</p></div>
+        </div>`).join('');
+}
+
+function go(sec){
+    document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));
+    document.getElementById(sec).classList.remove('hidden');
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelector(`[onclick="go('${sec}')"]`)?.classList.add('active');
+}
+
+// 啟動
+draw();
 </script>
 </body>
 </html>
