@@ -8,9 +8,10 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;color:#fff;font-family:system-ui;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-header{height:70px;background:#000;display:flex;align-items:center;padding:0 16px;gap:12px;z-index:10;}
+header{height:70px;background:#000;display:flex;align-items:center;padding:0 16px;gap:12px;position:relative;z-index:10;}
 header h1{color:#1ed760;font-size:28px;font-weight:900;}
 #search{flex:1;background:#222;color:#fff;padding:12px 20px;border-radius:30px;font-size:16px;outline:none;border:none;}
+#filter{background:#1ed760;color:#000;padding:8px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;}
 main{flex:1;overflow-y:auto;padding:20px 16px 100px;}
 h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px;}
@@ -38,18 +39,19 @@ h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 
 <header>
     <h1>FocusMusic</h1>
-    <input type="text" id="search" placeholder="搜尋 YouTube 音樂…" onkeypress="if(event.key==='Enter')goSearch()">
+    <input type="text" id="search" placeholder="搜尋歌曲…" onkeypress="if(event.key==='Enter')search()">
+    <div id="filter" onclick="toggleMode()">歌曲</div>
 </header>
 
 <main>
-    <h1>為你推薦（熱門華語）</h1>
-    <div class="grid" id="grid"></div>
+    <h1 id="pageTitle">為你推薦</h1>
+    <div class="grid" id="grid">載入中…</div>
 </main>
 
 <div id="shuffle" onclick="shufflePlay()">隨機播放全部</div>
 
 <div id="player">
-    <img id="thumb" src="https://i.imgur.com/8z6Q7vJ.png">
+    <img id="thumb" src="">
     <div id="nowTitle">準備播放</div>
     <div class="controls">
         <button onclick="prev()"><span class="material-icons-outlined">skip_previous</span></button>
@@ -63,52 +65,20 @@ h1{font-size:32px;font-weight:900;margin-bottom:20px;}
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-// 這三個公開播放清單我已經測試過，打開一定有歌（全部免 API Key）
-const playlists = [
-    "PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI", // 华语经典
-    "PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m", // 抖音热门
-    "PLw-VjHDl-ZG0nPR3M6l8cG3s6p7k5cBwX"  // KTV金曲
-];
+// 把這行換成你自己的 Key（一定要開啟 YouTube Data API v3）
+const KEY = 'AIzaSyBpy0IZXf9kkkPh2FlO-UMTVXUSmNqqyTQ'; // ← 這裡換成你的
 
 let player, songs = [], current = -1;
-
-// 隨機選一個播放清單當推薦
-async function loadRandomPlaylist() {
-    const id = playlists[Math.floor(Math.random()*playlists.length)];
-    const url = `https://www.youtube.com/feeds/videos.xml?playlist_id=${id}`;
-    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
-    const data = await res.json();
-    songs = data.items.map(item => ({
-        id: item.guid.split('=')[1],
-        title: item.title,
-        thumb: item.thumbnail
-    }));
-    render(songs);
-}
-
-function render(arr) {
-    const g = document.getElementById('grid');
-    g.innerHTML = '';
-    arr.forEach((s,i) => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.innerHTML = `
-            <img src="${s.thumb}">
-            <h3>${s.title.substring(0,70)}</h3>
-            <div class="play" onclick="event.stopPropagation();play(${i})">
-                <span class="material-icons-outlined">play_arrow</span>
-            </div>
-        `;
-        div.onclick = () => play(i);
-        g.appendChild(div);
-    });
-}
+let mode = 'song';
 
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('yt', {
         playerVars: { autoplay:1, controls:0, playsinline:1, rel:0 },
         events: {
-            'onReady': () => { loadRandomPlaylist(); setInterval(updateProgress,500); },
+            'onReady': () => {
+                setInterval(updateProgress, 500);
+                loadRecommend();
+            },
             'onStateChange': e => {
                 document.querySelector('#playBtn span').textContent = e.data===1 ? 'pause' : 'play_arrow';
             }
@@ -125,7 +95,7 @@ function play(i) {
 }
 function togglePlay() { player.getPlayerState()===1 ? player.pauseVideo() : player.playVideo(); }
 function next() { play(current >= songs.length-1 ? 0 : current+1); }
-function prev() { play(current <= 0 ? songs.length-1 : current-1); }
+ prev() { play(current <= 0 ? songs.length-1 : current-1); }
 function seek(e) {
     const rect = e.currentTarget.getBoundingClientRect();
     player.seekTo((e.clientX-rect.left)/rect.width * player.getDuration());
@@ -137,19 +107,74 @@ function updateProgress() {
 function shufflePlay() {
     const a = [...songs];
     for(let i=a.length-1;i>0;i--){
-        const j=Math.floor(Math.random()*(i+1));
-        [a[i],a[j]]=[a[j],a[i]];
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]] = [a[j],a[i]];
     }
     songs = a;
     render(songs);
     play(0);
 }
 
-// 搜尋直接跳 YouTube（最穩）
-function goSearch() {
-    const q = document.getElementById('search').value.trim();
-    if(q) window.open(`https://m.youtube.com/results?search_query=${encodeURIComponent(q)}+音樂+高清`, '_blank');
+function render(arr) {
+    const g = document.getElementById('grid');
+    g.innerHTML = '';
+    arr.forEach((s,i) => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+            <img src="${s.thumb}" onerror="this.src='https://via.placeholder.com/200/222/888?text=♪'">
+            <h3>${s.title.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</h3>
+            <div class="play" onclick="event.stopPropagation();play(${i})">
+                <span class="material-icons-outlined">play_arrow</span>
+            </div>
+        `;
+        div.onclick = () => play(i);
+        g.appendChild(div);
+    });
 }
+
+async function loadRecommend() {
+    document.getElementById('pageTitle').textContent = '為你推薦';
+    try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=TW&maxResults=50&key=${KEY}`);
+        if (!res.ok) throw new Error('API 錯誤');
+        const d = await res.json();
+        songs = d.items.map(v=>({id:v.id,title:v.snippet.title,thumb:v.snippet.thumbnails.medium.url}));
+        render(songs);
+    } catch(e) {
+        document.getElementById('grid').innerHTML = `<div style="text-align:center;padding:50px;color:#f66;">載入失敗<br><br>請確認：<br>1. 已替換第 91 行的 KEY<br>2. Google Cloud 專案已開啟 YouTube Data API v3<br>3. API Key 有配額且未被停用</div>`;
+    }
+}
+
+async function search() {
+    const q = document.getElementById('search').value.trim();
+    if(!q) return;
+    document.getElementById('pageTitle').textContent = '搜尋結果';
+    try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&q=${encodeURIComponent(q)}&videoEmbeddable=true&key=${KEY}`);
+        const d = await res.json();
+        songs = d.items.filter(x=>x.id?.videoId).map(x=>({
+            id:x.id.videoId,
+            title:x.snippet.title,
+            thumb:x.snippet.thumbnails.medium?.url||''
+        }));
+        render(songs);
+    } catch(e) {
+        document.getElementById('grid').innerHTML = '<div style="color:#f66;text-align:center;padding:50px;">搜尋失敗，請檢查 API Key</div>';
+    }
+}
+
+function toggleMode() {
+    mode = mode==='song' ? 'playlist' : 'song';
+    document.getElementById('filter').textContent = mode==='song'?'歌曲':'播放清單';
+    // 播放清單功能先留著，之後再加
+    if(mode==='playlist'){
+        document.getElementById('grid').innerHTML = '<div style="text-align:center;padding:80px;color:#888;">播放清單功能開發中…</div>';
+    }else loadRecommend();
+}
+
+// 啟動
+onYouTubeIframeAPIReady();
 </script>
 </body>
 </html>
