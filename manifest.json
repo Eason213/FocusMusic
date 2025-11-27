@@ -1,20 +1,19 @@
 {
-  "name": "FocusMusic",
+  "name": "Focus Music",
   "short_name": "FocusMusic",
-  "description": "極簡 YouTube 音樂播放器",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#000000",
-  "theme_color": "#1ed760",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "https://i.imgur.com/8z6Q7vJ.png",
+      "src": "https://raw.githubusercontent.com/YouTube/Music/main/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://i.imgur.com/8z6Q7vJ.png",
+      "src": "https://raw.githubusercontent.com/YouTube/Music/main/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
